@@ -4088,7 +4088,6 @@ export default {
       "refused": "The {{provider}} app didn't accept the request. Press play to try again."
     },
     "elsewhere": "The {{provider}} app switched to another song or device. Press play to bring this song back.",
-    "ad": "An ad is playing in the {{provider}} app.",
     "badge": "In {{provider}} app",
     "badgeAria": "Playing in the {{provider}} app on {{device}}. Open its setting.",
     "badgeAriaNoDevice": "Playing in the {{provider}} app. Open its setting.",

@@ -18,11 +18,11 @@ export type RemoteTrack = {
 /**
  * What the listener is told. `engaged`: the platform's app plays its songs from now on in this run;
  * `failed`: the app could not take a request; `elsewhere`: the app left the song (another song or
- * device); `ad`: an advertisement plays in the app. `id` grows, so the same notice twice is told twice.
+ * device). `id` grows, so the same notice twice is told twice.
  */
 export type RemoteNotice = {
     id: number;
-    kind: 'engaged' | 'failed' | 'elsewhere' | 'ad';
+    kind: 'engaged' | 'failed' | 'elsewhere';
     providerId: OnlineProviderId;
     failure?: RemotePlayerFailureKind;
 };

@@ -4088,7 +4088,6 @@ export default {
       "refused": "{{provider}} 应用没有接受这次请求。按播放再试一次。"
     },
     "elsewhere": "{{provider}} 应用换到了别的歌或别的设备。按播放可以切回这首歌。",
-    "ad": "{{provider}} 应用正在播放广告。",
     "badge": "在 {{provider}} 应用中",
     "badgeAria": "正在 {{device}} 上的 {{provider}} 应用中播放。打开相关设置。",
     "badgeAriaNoDevice": "正在 {{provider}} 应用中播放。打开相关设置。",

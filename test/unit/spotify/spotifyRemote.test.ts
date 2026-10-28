@@ -12,7 +12,7 @@ const { APP_MISSING, APP_NOT_FOUND, createSpotifyRemote, stateOf } = require('..
 const { readPayload } = require('../../../electron/spotify/dealer.cjs');
 
 const TRACK = '3n3Ppam7vgaVa1iaRUc9Lp';
-const HERE = { device_id: 'here000000000000000000000000000000000001', name: 'Xiding\'s MacBook Pro', device_type: 'COMPUTER' };
+const HERE = { device_id: 'here000000000000000000000000000000000001', name: 'Xiding\'s MacBook Pro', device_type: 'COMPUTER', volume: 32767.5 };
 const OTHER = { device_id: 'other00000000000000000000000000000000002', name: 'XIDINGSDESKTOP', device_type: 'COMPUTER' };
 const PHONE = { device_id: 'phone00000000000000000000000000000000003', name: 'iPhone', device_type: 'SMARTPHONE' };
 
@@ -63,14 +63,13 @@ describe('stateOf', () => {
             position_as_of_timestamp: '30000', timestamp: '1793150705923', duration: '222973',
         }, HERE.device_id), HERE, () => 0);
         expect(state).toEqual({
-            connected: true, deviceName: HERE.name, active: true, trackId: TRACK, ad: false, paused: false,
-            positionMs: 30000, positionAtMs: 1793150705923, durationMs: 222973,
+            connected: true, deviceName: HERE.name, active: true, trackId: TRACK, paused: false,
+            positionMs: 30000, positionAtMs: 1793150705923, durationMs: 222973, volume: 0.5,
         });
     });
 
-    it('takes a state not yet started (playing and paused at once) as paused, and an ad as an ad', () => {
+    it('takes a state not yet started (playing and paused at once) as paused', () => {
         expect(stateOf(clusterOf([HERE], { is_paused: true, is_playing: true }), HERE, () => 0).paused).toBe(true);
-        expect(stateOf(clusterOf([HERE], { track: { uri: 'spotify:ad:abc' } }), HERE, () => 0)).toMatchObject({ ad: true, trackId: null });
     });
 });
 

@@ -4088,7 +4088,6 @@ export default {
       "refused": "Ứng dụng {{provider}} không chấp nhận yêu cầu này. Nhấn phát để thử lại."
     },
     "elsewhere": "Ứng dụng {{provider}} đã chuyển sang bài hát hoặc thiết bị khác. Nhấn phát để quay lại bài này.",
-    "ad": "Ứng dụng {{provider}} đang phát quảng cáo.",
     "badge": "Trong ứng dụng {{provider}}",
     "badgeAria": "Đang phát trong ứng dụng {{provider}} trên {{device}}. Mở cài đặt.",
     "badgeAriaNoDevice": "Đang phát trong ứng dụng {{provider}}. Mở cài đặt.",

@@ -1,6 +1,7 @@
 import { PlayerState } from '../../types';
 import type { SongResult } from '../../types';
 import type { OmniRemotePlayer, RemotePlayerState } from '../../types/onlineMusic';
+import { useAudioSettingsStore } from '../../stores/useAudioSettingsStore';
 import { setAudioSrc, setDuration, setPlaybackRoute, setPlayerState, usePlaybackStore } from '../../stores/usePlaybackStore';
 import { getPlaybackSongKey } from '../../utils/appPlaybackGuards';
 import { HifiMediaShim, registerRouteMedia } from '../hifi/hifiMediaShim';
@@ -11,7 +12,8 @@ import { tellRemoteNotice, useRemoteTrackStore, type RemoteTrack } from './remot
 // src/services/remotePlayback/remotePlayback.ts
 // The remote route: a song of a platform whose own desktop app plays it in Folia's place
 // (remoteRoute.ts decides which). No audio is in Folia: the app sounds the song, Folia shows it
-// (lyrics, cover, progress) from the state the app reports and steers it (play, pause, seek). One
+// (lyrics, cover, progress) from the state the app reports and steers it (play, pause, seek, and
+// the volume, from Folia's slider). One
 // song is handed to the app at a time; when it ends there, Folia goes on to its own next song,
 // which may be anyone's: a song of another platform plays in Folia as always, and the app is
 // paused as Folia leaves the route (the route guard below).
@@ -29,8 +31,12 @@ let loop = 0;
 let ownWriteDepth = 0;
 // What Folia does when the app reaches the end of the song (useRemotePlaybackBridge: the next song).
 let endedHandler: (() => void) | null = null;
-// The song an advertisement was told for: told once a song, not on every report while it plays.
-let adToldFor: string | null = null;
+// Folia's volume slider sets the app's volume (there is no audio in Folia to turn down): once the app
+// holds a song, and as the slider moves, at most once in VOLUME_STEP_MS while it is dragged, with the
+// last value always sent. Mute sends 0. What the app was last sent, so the same value is not sent twice.
+const VOLUME_STEP_MS = 150;
+let volumeTimer: ReturnType<typeof setTimeout> | null = null;
+let sentVolume: number | null = null;
 
 const withoutRouteGuard = (write: () => void) => {
     ownWriteDepth += 1;
@@ -91,6 +97,31 @@ const start = async (track: RemoteTrack, positionMs: number) => {
     }
 };
 
+const wantedVolume = () => {
+    const { volume, isMuted } = useAudioSettingsStore.getState();
+    return isMuted ? 0 : Math.round(Math.min(1, Math.max(0, volume)) * 1000) / 1000;
+};
+
+const sendVolume = () => {
+    volumeTimer = null;
+    const { current, holding } = useRemoteTrackStore.getState();
+    const player = playerOf(current);
+    if (!current || !holding || !player || !isRemoteRoute()) return;
+    const level = wantedVolume();
+    if (level === sentVolume) return;
+    sentVolume = level;
+    void player.control('volume', level).catch((error) => {
+        // Not known to have been set: the next change sends it again.
+        sentVolume = null;
+        console.warn('[RemotePlayback] The app\'s volume was not set', error);
+    });
+};
+
+/** Sends Folia's volume to the app, at most once in VOLUME_STEP_MS: the value at that moment. */
+const followVolume = () => {
+    if (volumeTimer === null) volumeTimer = setTimeout(sendVolume, VOLUME_STEP_MS);
+};
+
 /** One report of the app's state, read against the song shown. */
 const applyReport = (reported: RemotePlayerState) => {
     useRemoteTrackStore.setState({ reported });
@@ -98,22 +129,22 @@ const applyReport = (reported: RemotePlayerState) => {
     if (!current || !isRemoteRoute()) return;
     const update = readRemoteUpdate({ mediaId: current.mediaId, holding, clock }, reported);
     if (update.kind === 'waiting') return;
-    if (update.kind === 'ad' || update.kind === 'elsewhere') {
+    if (update.kind === 'elsewhere') {
         clock = pauseRemoteClock(clock);
         remoteMediaShim.markPaused();
         if (usePlaybackStore.getState().playerState === PlayerState.PLAYING) setPlayerState(PlayerState.PAUSED);
-        if (update.kind === 'elsewhere') {
-            // Played again from here (a press of play) it is handed to the app anew.
-            useRemoteTrackStore.setState({ holding: false });
-            console.info('[RemotePlayback] The app left the song for another song or device', { songKey: current.songKey });
-        } else if (adToldFor === current.trackKey) {
-            return;
-        }
-        adToldFor = current.trackKey;
-        tellRemoteNotice({ kind: update.kind, providerId: current.providerId });
+        // Played again from here (a press of play) it is handed to the app anew.
+        useRemoteTrackStore.setState({ holding: false });
+        console.info('[RemotePlayback] The app left the song for another song or device', { songKey: current.songKey });
+        tellRemoteNotice({ kind: 'elsewhere', providerId: current.providerId });
         return;
     }
-    if (!holding) useRemoteTrackStore.setState({ holding: true });
+    if (!holding) {
+        useRemoteTrackStore.setState({ holding: true });
+        // The app has the song now: it plays at Folia's volume, whatever the app was left at.
+        sentVolume = null;
+        followVolume();
+    }
     clock = update.clock;
     showDuration(clock.durationMs);
     if (update.ended) {
@@ -281,6 +312,9 @@ export const installRemotePlayback = () => {
     if (installed) return;
     installed = true;
     registerRouteMedia('remote', remoteMediaShim);
+    useAudioSettingsStore.subscribe((state, previous) => {
+        if (state.volume !== previous.volume || state.isMuted !== previous.isMuted) followVolume();
+    });
     usePlaybackStore.subscribe((state, previous) => {
         if (ownWriteDepth > 0) return;
         if (state.playbackRoute === 'remote') {

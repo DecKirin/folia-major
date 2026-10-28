@@ -15,11 +15,15 @@ afterEach(() => {
 });
 
 describe('spotifyRemotePlayer.takesOver', () => {
-    it('takes over for an account given no key, a system without the playback component and a free account', () => {
+    it('takes over for an account given no key and a system without the playback component', () => {
         vi.stubGlobal('window', { electron: { spotifyRequest: () => undefined } });
         expect(spotifyRemotePlayer.takesOver(fromDesktop('unavailable', 'Spotify gives this account no audio key'))).toBe(true);
         expect(spotifyRemotePlayer.takesOver(fromDesktop('unavailable', 'Spotify playback is not available on this system'))).toBe(true);
-        expect(spotifyRemotePlayer.takesOver(fromDesktop('subscription-required', 'Spotify plays for Premium accounts only'))).toBe(true);
+    });
+
+    it('does not for a free account, which Spotify Connect will not let be steered from here', () => {
+        vi.stubGlobal('window', { electron: { spotifyRequest: () => undefined } });
+        expect(spotifyRemotePlayer.takesOver(fromDesktop('subscription-required', 'Spotify plays for Premium accounts only'))).toBe(false);
     });
 
     it('does not for a refusal that passes, one song, a network, or another platform', () => {

@@ -37,8 +37,6 @@ export const pauseRemoteClock = (clock: RemoteClock, nowMs = Date.now()): Remote
 export type RemoteUpdate =
     // The app plays (or holds) this song: the clock as it reports, and whether that ended it or moved it.
     | { kind: 'mine'; clock: RemoteClock; ended: boolean; seeked: boolean }
-    // An advertisement plays in the app, in this song's place.
-    | { kind: 'ad' }
     // The app held this song and has left it: another song chosen in the app, or another device playing.
     | { kind: 'elsewhere' }
     // The app has not taken this song up yet (it is being started, or waits for a press of play).
@@ -53,7 +51,6 @@ export const readRemoteUpdate = (
     state: RemotePlayerState,
     nowMs = Date.now(),
 ): RemoteUpdate => {
-    if (state.active && state.ad) return holding ? { kind: 'ad' } : { kind: 'waiting' };
     const mine = state.active && state.mediaId === mediaId;
     if (!mine) return holding ? { kind: 'elsewhere' } : { kind: 'waiting' };
     const next: RemoteClock = {

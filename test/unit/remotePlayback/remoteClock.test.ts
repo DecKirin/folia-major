@@ -9,7 +9,7 @@ import type { RemotePlayerState } from '@/types/onlineMusic';
 
 const ID = '3n3Ppam7vgaVa1iaRUc9Lp';
 const report = (patch: Partial<RemotePlayerState> = {}): RemotePlayerState => ({
-    version: 1, connected: true, deviceName: 'Mac', active: true, mediaId: ID, ad: false,
+    version: 1, connected: true, deviceName: 'Mac', active: true, mediaId: ID, volume: null,
     paused: false, positionMs: 0, positionAtMs: 1000, durationMs: 200_000, ...patch,
 });
 const playing = (baseMs: number, atMs: number): RemoteClock => ({ baseMs, atMs, paused: false, durationMs: 200_000 });
@@ -55,9 +55,8 @@ describe('readRemoteUpdate', () => {
         expect(update).toMatchObject({ kind: 'mine', seeked: true, ended: false });
     });
 
-    it('tells an ad and another song or device apart once the app held the song', () => {
+    it('tells another song or device once the app held the song', () => {
         const clock = playing(10_000, 0);
-        expect(readRemoteUpdate({ mediaId: ID, holding: true, clock }, report({ ad: true, mediaId: null }))).toEqual({ kind: 'ad' });
         expect(readRemoteUpdate({ mediaId: ID, holding: true, clock }, report({ mediaId: 'another00000000000000000' }))).toEqual({ kind: 'elsewhere' });
         expect(readRemoteUpdate({ mediaId: ID, holding: true, clock }, report({ active: false }))).toEqual({ kind: 'elsewhere' });
     });

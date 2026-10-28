@@ -32,9 +32,10 @@ const { beginRemoteTrack, installRemotePlayback, remoteTransport, getRemotePosit
 const { useRemoteTrackStore } = await import('@/services/remotePlayback/remoteTrackStore');
 const { setAudioSrc, setPlaybackRoute, usePlaybackStore } = await import('@/stores/usePlaybackStore');
 const { PlayerState } = await import('@/types');
+const { useAudioSettingsStore } = await import('@/stores/useAudioSettingsStore');
 
 const report = (patch: Partial<RemotePlayerState> = {}): RemotePlayerState => ({
-    version: 1, connected: true, deviceName: 'Mac', active: true, mediaId: ID, ad: false,
+    version: 1, connected: true, deviceName: 'Mac', active: true, mediaId: ID, volume: null,
     paused: false, positionMs: 0, positionAtMs: Date.now(), durationMs: 227_731, ...patch,
 });
 const song = { id: ID, name: '又三郎', durationMs: 227_731, sourceRef: { kind: 'online', providerId: 'spotify', mediaId: ID } } as unknown as SongResult;
@@ -94,6 +95,27 @@ describe('the remote route', () => {
         expect(usePlaybackStore.getState().playerState).toBe(PlayerState.PAUSED);
         expect(remoteTransport.resume()).toBe(true);
         expect(play).toHaveBeenCalledWith(song, 61_000);
+    });
+
+    it('sets the app to Folia\'s volume once it holds the song, follows the slider, and sends 0 on mute', async () => {
+        useAudioSettingsStore.setState({ volume: 0.4, isMuted: false });
+        await playInApp();
+        await new Promise(resolve => { setTimeout(resolve, 200); });
+        expect(control).toHaveBeenLastCalledWith('volume', 0.4);
+        // A drag: many values within the step, one request with the last.
+        for (const volume of [0.5, 0.6, 0.7]) useAudioSettingsStore.setState({ volume });
+        await new Promise(resolve => { setTimeout(resolve, 200); });
+        expect(control.mock.calls.filter(([action]) => action === 'volume')).toEqual([['volume', 0.4], ['volume', 0.7]]);
+        useAudioSettingsStore.setState({ isMuted: true });
+        await new Promise(resolve => { setTimeout(resolve, 200); });
+        expect(control).toHaveBeenLastCalledWith('volume', 0);
+    });
+
+    it('does not set the volume of an app that is not playing the song for Folia', async () => {
+        await beginRemoteTrack({ song, autoplay: false });
+        useAudioSettingsStore.setState({ volume: 0.3, isMuted: false });
+        await new Promise(resolve => { setTimeout(resolve, 200); });
+        expect(control).not.toHaveBeenCalled();
     });
 
     it('leaves Folia\'s other routes alone: off the remote route its transport does nothing', () => {

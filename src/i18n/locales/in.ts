@@ -4088,7 +4088,6 @@ export default {
       "refused": "Aplikasi {{provider}} tidak menerima permintaan ini. Tekan putar untuk mencoba lagi."
     },
     "elsewhere": "Aplikasi {{provider}} beralih ke lagu atau perangkat lain. Tekan putar untuk kembali ke lagu ini.",
-    "ad": "Iklan sedang diputar di aplikasi {{provider}}.",
     "badge": "Di aplikasi {{provider}}",
     "badgeAria": "Diputar di aplikasi {{provider}} pada {{device}}. Buka pengaturannya.",
     "badgeAriaNoDevice": "Diputar di aplikasi {{provider}}. Buka pengaturannya.",

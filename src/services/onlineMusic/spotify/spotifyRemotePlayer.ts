@@ -8,7 +8,8 @@ import { requireSpotifySong } from './spotifyNormalize';
 // Spotify's own desktop app playing a Spotify song in the app's place, steered through Spotify
 // Connect by the desktop side (electron/spotify/remote.cjs). For an account Spotify gives no audio
 // key to, and for a system the playback component has no build for: neither changes from one song
-// to the next, so the app takes over. A free account too, which Spotify gives no audio to here.
+// to the next, so the app takes over. Not a free account: Spotify Connect does not let one be
+// steered like this, so it keeps the "Premium only" failure it had.
 
 // The desktop side's sentences for the cases of `takesOver` (electron/spotify/audio.cjs) and of
 // `failureKind` (electron/spotify/remote.cjs).
@@ -21,7 +22,7 @@ export const spotifyRemotePlayer: OnlineRemotePlayer = {
     takesOver(error) {
         if (!(error instanceof OnlineProviderError) || error.providerId !== 'spotify') return false;
         if (!getSpotifyTransportAvailability().configured) return false;
-        return error.code === 'subscription-required' || error.message === ACCOUNT_GETS_NO_KEY || error.message === NO_PLAYBACK_COMPONENT;
+        return error.message === ACCOUNT_GETS_NO_KEY || error.message === NO_PLAYBACK_COMPONENT;
     },
     async play(song, positionMs) {
         await requestSpotify('remote_play', { id: requireSpotifySong(song), positionMs: Math.max(0, Math.round(positionMs)) });

@@ -34,11 +34,11 @@ export interface SpotifyWireRemoteState {
     deviceName: string | null;
     active: boolean;
     trackId: string | null;
-    ad: boolean;
     paused: boolean;
     positionMs: number;
     positionAtMs: number;
     durationMs: number | null;
+    volume: number | null;
 }
 
 export const getSpotifyTransportAvailability = () => (

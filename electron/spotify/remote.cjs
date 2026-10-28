@@ -33,7 +33,7 @@ const APP_MISSING = 'The Spotify app is not installed on this computer';
 const APP_NOT_FOUND = 'The Spotify app on this computer is not playing for this account';
 
 const EMPTY_STATE = Object.freeze({
-  connected: false, deviceName: null, active: false, trackId: null, ad: false, paused: true, positionMs: 0, positionAtMs: 0, durationMs: null,
+  connected: false, deviceName: null, active: false, trackId: null, paused: true, positionMs: 0, positionAtMs: 0, durationMs: null, volume: null,
 });
 
 const computersOf = cluster => Object.values(cluster?.devices ?? {}).filter(device => typeof device?.device_id === 'string'
@@ -49,12 +49,13 @@ function stateOf(cluster, device, now) {
     deviceName: device ? String(device.name ?? '') : null,
     active: Boolean(device) && cluster?.active_device_id === device.device_id,
     trackId: /^spotify:track:([0-9A-Za-z]{22})$/.exec(uri)?.[1] ?? null,
-    ad: uri.startsWith('spotify:ad:') || player.track?.provider === 'ad',
     // A state not yet started reads `is_playing` true and `is_paused` true together.
     paused: player.is_paused === true || player.is_playing !== true,
     positionMs: number(player.position_as_of_timestamp) ?? 0,
     positionAtMs: number(player.timestamp) ?? now(),
     durationMs: number(player.duration),
+    // The app's volume, 0 to 1 (Spotify counts it to 65535); null where the account does not say.
+    volume: number(device?.volume) === null ? null : Math.min(1, Math.max(0, number(device.volume) / 65535)),
   };
 }
 

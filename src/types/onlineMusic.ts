@@ -412,15 +412,15 @@ export interface RemotePlayerState {
     deviceName: string | null;
     /** The app on this computer is the one playing for the account. */
     active: boolean;
-    /** The platform's id of the song the account plays; null for none, or for an ad. */
+    /** The platform's id of the song the account plays; null for none. */
     mediaId: string | null;
-    /** The account hears an advertisement. */
-    ad: boolean;
     paused: boolean;
     /** Where the song was at `positionAtMs` (a `Date.now()` time); it moves on from there while not paused. */
     positionMs: number;
     positionAtMs: number;
     durationMs: number | null;
+    /** The app's volume, 0 to 1; null where the platform does not say. */
+    volume: number | null;
 }
 
 /**
