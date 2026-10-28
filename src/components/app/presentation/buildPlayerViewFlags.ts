@@ -16,6 +16,7 @@ export const buildPlayerViewFlags = ({
     duration,
     playbackRoute,
     hasHifiTrack,
+    hasRemoteTrack,
 }: {
     currentView: string;
     disableHomeDynamicBackground: boolean;
@@ -31,6 +32,8 @@ export const buildPlayerViewFlags = ({
     playbackRoute: PlaybackRoute;
     /** useHifiTrackStore has a current track (loading, ready, or the one mpv still holds). */
     hasHifiTrack: boolean;
+    /** useRemoteTrackStore has a current track (the song the platform's own app plays for Folia). */
+    hasRemoteTrack: boolean;
 }) => {
     const isPlayerView = currentView === 'player';
     return {
@@ -42,6 +45,7 @@ export const buildPlayerViewFlags = ({
         canToggleCurrentPlayback: !isNowPlayingControlDisabled && Boolean(
             audioSrc
             || (playbackRoute === 'hifi' && hasHifiTrack)
+            || (playbackRoute === 'remote' && hasRemoteTrack)
             || (activePlaybackContext === 'stage' && stageActiveEntryKind === 'lyrics' && duration > 0),
         ),
     };

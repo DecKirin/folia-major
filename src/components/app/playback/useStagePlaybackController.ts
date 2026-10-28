@@ -49,6 +49,7 @@ import { currentTime } from '../../../stores/motionSignals';
 import { useAudioSettingsStore } from '../../../stores/useAudioSettingsStore';
 import type { PlaybackRoute } from '../../../types/hifi';
 import { getHifiPosition, isHifiRoute } from '../../../services/hifi/hifiPlayback';
+import { getRemotePosition, isRemoteRoute } from '../../../services/remotePlayback/remotePlayback';
 import { restorePlaybackSourceForSong } from './restore/restorePlaybackSource';
 import { findPlaybackDecks } from '../../hifi/useWebEngineYield';
 
@@ -219,7 +220,7 @@ export function useStagePlaybackController({
             playQueue,
             isFmMode,
             playerState,
-            currentTime: onHifi ? getHifiPosition() : audioRef.current?.currentTime ?? currentTime.get(),
+            currentTime: onHifi ? getHifiPosition() : isRemoteRoute() ? getRemotePosition() : audioRef.current?.currentTime ?? currentTime.get(),
             duration,
             currentLineIndex,
             route: onHifi ? 'hifi' : 'web',

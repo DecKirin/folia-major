@@ -4065,6 +4065,19 @@ export default {
     "cloudDriveDesc": "Ổ đĩa NetEase Cloud Music",
     "qqCloudDriveDesc": "Ổ nhạc đám mây Weiyun",
   },
+  "remotePlayback": {
+    "engaged": "{{provider}} không cho phép tài khoản này phát trực tiếp trong Folia, nên giờ các bài hát này được phát bằng ứng dụng của chính nó. Folia hiển thị và điều khiển chúng.",
+    "engagedNote": "Hiệu ứng, bộ cân bằng, automix và hình ảnh theo âm thanh không áp dụng cho các bài hát này.",
+    "failed": {
+      "app-missing": "Bài hát này cần ứng dụng {{provider}}, nhưng máy tính này chưa cài đặt.",
+      "app-not-found": "Ứng dụng {{provider}} không phản hồi. Hãy mở ứng dụng và đăng nhập cùng tài khoản, rồi nhấn phát.",
+      "unreachable": "Không kết nối được với {{provider}} để điều khiển ứng dụng. Hãy kiểm tra kết nối rồi nhấn phát lại.",
+      "refused": "Ứng dụng {{provider}} không chấp nhận yêu cầu này. Nhấn phát để thử lại."
+    },
+    "elsewhere": "Ứng dụng {{provider}} đã chuyển sang bài hát hoặc thiết bị khác. Nhấn phát để quay lại bài này.",
+    "ad": "Ứng dụng {{provider}} đang phát quảng cáo.",
+    "videoExportUnavailable": "Không thể xuất video khi ứng dụng của nền tảng phát bài hát: âm thanh không đi qua Folia."
+  },
   "hifi": {
     "settings": {
       "groupEngine": "Công cụ phát",

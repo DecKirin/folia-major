@@ -4065,6 +4065,19 @@ export default {
     "cloudDriveDesc": "NetEase Cloud Music Drive",
     "qqCloudDriveDesc": "Weiyun Music Drive",
   },
+  "remotePlayback": {
+    "engaged": "{{provider}} won't stream to Folia for this account, so its own app plays these songs now. Folia shows and controls them.",
+    "engagedNote": "Effects, the equalizer, automix and audio-driven visuals don't apply to these songs.",
+    "failed": {
+      "app-missing": "This song needs the {{provider}} app, and it isn't installed on this computer.",
+      "app-not-found": "The {{provider}} app didn't respond. Open it and sign in to the same account, then press play.",
+      "unreachable": "Couldn't reach {{provider}} to control its app. Check your connection and press play again.",
+      "refused": "The {{provider}} app didn't accept the request. Press play to try again."
+    },
+    "elsewhere": "The {{provider}} app switched to another song or device. Press play to bring this song back.",
+    "ad": "An ad is playing in the {{provider}} app.",
+    "videoExportUnavailable": "Video export is unavailable while a platform's own app plays the song: its sound never reaches Folia."
+  },
   "hifi": {
     "settings": {
       "groupEngine": "Playback engine",

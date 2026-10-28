@@ -18,6 +18,7 @@ import { spotifyMutations } from './spotifyMutations';
 import { resetSpotifyRecommendations, spotifyRecommendations } from './spotifyRecommendations';
 import { describeSpotifyLoginFailure, spotifyLoginFailure } from './spotifyLoginFailure';
 import { describeSpotifyFailure } from './spotifyFailure';
+import { spotifyRemotePlayer } from './spotifyRemotePlayer';
 
 // src/services/onlineMusic/spotify/spotifyProvider.ts
 // Spotify adapter. Sign-in happens in the browser where the person is already signed in to
@@ -151,6 +152,8 @@ export const spotifyProvider: OnlineMusicProvider = {
         keepAudio: url => requestSpotify<boolean>('audio_keep', { url, limitBytes: cacheLimitBytes() }),
         hasKeptAudio: url => requestSpotify<boolean>('audio_kept', { url }),
     },
+    // Where Spotify gives this account no audio, its own desktop app plays in the app's place.
+    remotePlayer: spotifyRemotePlayer,
     lyrics: {
         // Spotify's own lyrics are timed by line, or not at all. Untimed ones, and a failure to read
         // them, answer "none" instead of an error, so that the cross-source lookup still runs for the song.

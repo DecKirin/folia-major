@@ -4065,6 +4065,19 @@ export default {
     "cloudDriveDesc": "网易云音乐云盘",
     "qqCloudDriveDesc": "微云音乐网盘",
   },
+  "remotePlayback": {
+    "engaged": "{{provider}} 不允许这个账号在 Folia 里直接播放，这些歌改由它自己的应用播放，Folia 负责显示和控制。",
+    "engagedNote": "音效、均衡器、智能过渡和随音频变化的视觉效果对这些歌不起作用。",
+    "failed": {
+      "app-missing": "这首歌要用 {{provider}} 应用播放，但这台电脑上没有安装。",
+      "app-not-found": "{{provider}} 应用没有响应。请打开它并登录同一个账号，再按播放。",
+      "unreachable": "连不上 {{provider}}，无法控制它的应用。请检查网络后再按播放。",
+      "refused": "{{provider}} 应用没有接受这次请求。按播放再试一次。"
+    },
+    "elsewhere": "{{provider}} 应用换到了别的歌或别的设备。按播放可以切回这首歌。",
+    "ad": "{{provider}} 应用正在播放广告。",
+    "videoExportUnavailable": "由平台自己的应用播放时无法导出视频：声音不经过 Folia。"
+  },
   "hifi": {
     "settings": {
       "groupEngine": "播放引擎",

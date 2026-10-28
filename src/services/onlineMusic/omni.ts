@@ -5,6 +5,7 @@ import type {
     LoginStep,
     MediaId,
     OmniAudioSource,
+    OmniRemotePlayer,
     OmniChorusRange,
     OmniCollection,
     OmniExploreItemsPage,
@@ -914,6 +915,12 @@ export const omni = {
 
     canPlaySong(song: SongResult): boolean {
         return Boolean(getOnlineMusicProviderForSong(song)?.playback);
+    },
+
+    // The platform's own app, which plays the platform's songs in this one's place where this one
+    // cannot play them itself (`OnlineMusicProvider.remotePlayer`); null where the platform has none.
+    getRemotePlayer(providerId: OmniProviderId): OmniRemotePlayer | null {
+        return getOnlineMusicProvider(providerId)?.remotePlayer ?? null;
     },
 
     // The quality levels a provider tells apart, lowest first (`OnlinePlaybackProvider.audioQualityLevels`;

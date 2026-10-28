@@ -28,6 +28,7 @@ import { useLyricSettingsStore } from '../stores/useLyricSettingsStore';
 import { useAutomixSettingsStore } from '../stores/useAutomixSettingsStore';
 import { useAudioSettingsStore } from '../stores/useAudioSettingsStore';
 import { onlineFailureOf } from './onlineMusic/failure/onlineFailureCase';
+import { noteRemoteTakeover, remoteRouteFor } from './remotePlayback/remoteRoute';
 import { noteOnlineRequestCooldown, onlineRequestCooldown } from './onlineMusic/failure/onlineRequestCooldown';
 import { usePlaybackStore } from '../stores/usePlaybackStore';
 
@@ -252,6 +253,9 @@ export const resolvePrefetchAudioUrl = async (
             return null;
         }
 
+        // A song its platform's own app plays has no address here, and asking would only be refused again.
+        if (remoteRouteFor(song)) return null;
+
         const audioSource = await omni.getAudioSource(song, audioQuality);
         if (signal.aborted) return null;
         const url = toPlayableAudioUrl(audioSource?.url);
@@ -262,6 +266,8 @@ export const resolvePrefetchAudioUrl = async (
         console.warn(`[Prefetch] Failed to get audio URL for ${song.name}:`, e);
         // 只有平台要求稍后再试、或它的服务出了错才登记冷却；别的失败在这里什么都不留。
         noteOnlineRequestCooldown(onlineFailureOf({ operation: 'audio', providerId }, { error: e }));
+        // 平台说这个账号的音频在这里根本放不了：之后这个平台的歌交给它自己的应用放（remoteRoute.ts）。
+        noteRemoteTakeover(song, e);
         return null;
     }
 };

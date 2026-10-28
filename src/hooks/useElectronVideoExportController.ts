@@ -27,6 +27,7 @@ import { useAppChromeStore } from '../stores/useAppChromeStore';
 import { setIsPanelOpen } from '../stores/useAppViewStore';
 import { currentTime } from '../stores/motionSignals';
 import { isHifiRoute } from '../services/hifi/hifiPlayback';
+import { isRemoteRoute } from '../services/remotePlayback/remotePlayback';
 
 // src/hooks/useElectronVideoExportController.ts
 // Records the real player window so audio.currentTime remains the single animation clock.
@@ -79,6 +80,16 @@ export const useElectronVideoExportController = ({
                 status: 'error',
                 presetId: preset.id,
                 error: t('hifi.videoExportUnavailable'),
+            });
+            return;
+        }
+        // The same on the remote route: the platform's own app sounds the song, and none of it reaches the page.
+        if (isRemoteRoute()) {
+            setExportState({
+                ...idleVideoExportState(),
+                status: 'error',
+                presetId: preset.id,
+                error: t('remotePlayback.videoExportUnavailable'),
             });
             return;
         }

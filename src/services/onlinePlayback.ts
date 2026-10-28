@@ -22,6 +22,7 @@ import { useLyricSettingsStore } from '../stores/useLyricSettingsStore';
 import { useOnlineProviderAccountStore } from '../stores/useOnlineProviderAccountStore';
 import { saveLyricCacheSongMetadata } from './lyricExport/lyricCacheMetadata';
 import { errorFields } from '../utils/errorText';
+import { noteRemoteTakeover } from './remotePlayback/remoteRoute';
 
 // How long playback waits for a stored copy's header to give its play length (`wholeCopy`). Past
 // it the copy plays untested: the check must not hold up a song that starts from the cache.
@@ -157,6 +158,9 @@ export async function loadOnlineSongAudioSource(
             ? onlineFailureOf({ operation: 'audio', providerId, signedOut }, { detail: { case: 'no-audio' } })
             : onlineFailureOf({ operation: 'audio', providerId, signedOut }, { error: thrown });
         noteOnlineRequestCooldown(failure);
+        // The platform said this account's audio will not play here at all, and its own app plays in
+        // Folia's place: the caller sees the remote route for the song now (remoteRoute.ts).
+        if (thrown !== undefined && noteRemoteTakeover(song, thrown)) return { kind: 'unavailable', failure };
 
         const delays = autoRetryDelaysMs(failure);
         const retry = options.retry;

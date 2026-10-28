@@ -69,6 +69,8 @@ import { wholeQueueWritesSoFar } from '../../../../services/wholeQueueWrites';
 import { noteQueueStart } from './queueStarts';
 import { errorMessage } from '../../../../utils/errorText';
 import { hifiTransport, isHifiRoute } from '../../../../services/hifi/hifiPlayback';
+import { beginRemoteTrack, remoteTransport } from '../../../../services/remotePlayback/remotePlayback';
+import { remoteRouteFor } from '../../../../services/remotePlayback/remoteRoute';
 
 // src/components/app/playback/start/usePlaybackQueueController.ts
 
@@ -178,6 +180,7 @@ const isPassingFailure = (shown: OnlineFailure) => (
 const pauseWhatIsSounding = (audio: HTMLAudioElement | null) => {
     audio?.pause();
     if (isHifiRoute()) void hifiTransport.pause();
+    remoteTransport.pause();
 };
 
 // A sign-in that has run out comes with the button that opens the sign-in window for that platform.
@@ -832,11 +835,14 @@ export function usePlaybackQueueController({
 
         prefetched = getPrefetchedData(song, audioQuality);
 
+        // Played by its platform's own app (services/remotePlayback): no address is asked for here.
+        // A platform that says, below, that this account's audio will not play here turns it on too.
+        let onRemote = remoteRouteFor(song);
         const hasImmediatePrefetchedAudio = Boolean(
             prefetched?.audioUrl &&
             prefetched.audioUrl !== 'CACHED_IN_DB'
         );
-        const hasCachedAudioBlob = hasImmediatePrefetchedAudio
+        const hasCachedAudioBlob = hasImmediatePrefetchedAudio || onRemote
             ? null
             : await hasCachedSongAudio(song);
 
@@ -849,39 +855,44 @@ export function usePlaybackQueueController({
             setStatusMsg({ type: 'info', text: t('status.loadingSong') });
         }
 
-        try {
-            // Where the platform could not be reached the load asks again by itself while this play is
-            // wanted, and says so.
-            preloadedOnlineAudioResult = await loadOnlineSongAudio(song, audioQuality, prefetched, {
-                retry: {
-                    isCurrent: isLatestPlaybackRequest,
-                    onRetrying: shown => {
-                        if (isLatestPlaybackRequest()) {
-                            setStatusMsg({ type: 'info', text: t('status.songRetrying'), ...(shown.providerId ? { providerId: shown.providerId } : {}) });
-                        }
+        if (!onRemote) {
+            try {
+                // Where the platform could not be reached the load asks again by itself while this play is
+                // wanted, and says so.
+                preloadedOnlineAudioResult = await loadOnlineSongAudio(song, audioQuality, prefetched, {
+                    retry: {
+                        isCurrent: isLatestPlaybackRequest,
+                        onRetrying: shown => {
+                            if (isLatestPlaybackRequest()) {
+                                setStatusMsg({ type: 'info', text: t('status.songRetrying'), ...(shown.providerId ? { providerId: shown.providerId } : {}) });
+                            }
+                        },
                     },
-                },
-            });
-            if (!isLatestPlaybackRequest()) {
-                giveBackUnusedCopy();
-                isLatestPlaybackRequest.abandon();
-                return;
-            }
+                });
+                if (!isLatestPlaybackRequest()) {
+                    giveBackUnusedCopy();
+                    isLatestPlaybackRequest.abandon();
+                    return;
+                }
 
-            if (preloadedOnlineAudioResult.kind === 'unavailable') {
-                const shown = preloadedOnlineAudioResult.failure;
-                if (shown.case === 'taken-down') await presentTakenDown(shown);
-                else presentOnlineFailure(shown);
+                if (preloadedOnlineAudioResult.kind === 'unavailable') {
+                    const shown = preloadedOnlineAudioResult.failure;
+                    if (remoteRouteFor(song)) onRemote = true;
+                    else {
+                        if (shown.case === 'taken-down') await presentTakenDown(shown);
+                        else presentOnlineFailure(shown);
+                        return;
+                    }
+                }
+            } catch (error) {
+                if (!isLatestPlaybackRequest()) {
+                    isLatestPlaybackRequest.abandon();
+                    return;
+                }
+                console.error('[App] Failed to fetch song URL:', error);
+                presentOnlineFailure(onlineFailureOf({ operation: 'audio', providerId }, { error }));
                 return;
             }
-        } catch (error) {
-            if (!isLatestPlaybackRequest()) {
-                isLatestPlaybackRequest.abandon();
-                return;
-            }
-            console.error('[App] Failed to fetch song URL:', error);
-            presentOnlineFailure(onlineFailureOf({ operation: 'audio', providerId }, { error }));
-            return;
         }
 
         const songKey = getPlaybackSongKey(song);
@@ -962,20 +973,27 @@ export function usePlaybackQueueController({
         }
 
         const audioResult = preloadedOnlineAudioResult;
-        if (!audioResult || audioResult.kind !== 'ok') {
-            setStatusMsg({ type: 'error', text: t('status.playbackError') });
-            setPlayerState(PlayerState.IDLE);
-            setIsLyricsLoading(false);
-            return;
-        }
+        if (onRemote) {
+            // The app plays it; Folia shows it. Started at once, as <audio>'s autoplay would.
+            const autoplay = shouldAutoPlayRef.current;
+            shouldAutoPlayRef.current = false;
+            void beginRemoteTrack({ song: resolvedSong, autoplay });
+        } else {
+            if (!audioResult || audioResult.kind !== 'ok') {
+                setStatusMsg({ type: 'error', text: t('status.playbackError') });
+                setPlayerState(PlayerState.IDLE);
+                setIsLyricsLoading(false);
+                return;
+            }
 
-        if (audioResult.blobUrl) {
-            blobUrlRef.current = audioResult.blobUrl;
+            if (audioResult.blobUrl) {
+                blobUrlRef.current = audioResult.blobUrl;
+            }
+            // Here only an http address keeps its fetch time (the restore and the recovery keep it for
+            // every address that is not a blob).
+            currentOnlineAudioUrlFetchedAtRef.current = audioResult.audioSrc.startsWith('http') ? audioResult.fetchedAt : null;
+            setAudioSrc(audioResult.audioSrc);
         }
-        // Here only an http address keeps its fetch time (the restore and the recovery keep it for
-        // every address that is not a blob).
-        currentOnlineAudioUrlFetchedAtRef.current = audioResult.audioSrc.startsWith('http') ? audioResult.fetchedAt : null;
-        setAudioSrc(audioResult.audioSrc);
 
         try {
             await loadOnlineSongLyrics(song, prefetched, userId, {
@@ -996,7 +1014,7 @@ export function usePlaybackQueueController({
                 onAutoMatchStart: () => {
                     // A preview clip plays as it comes and is told of as it starts (previewNotice.ts),
                     // which is when this search starts too: its notice would take the preview's place.
-                    if (!audioResult.preview) setStatusMsg({ type: 'info', text: t('status.matchingBestLyrics') });
+                    if (!(audioResult?.kind === 'ok' && audioResult.preview)) setStatusMsg({ type: 'info', text: t('status.matchingBestLyrics') });
                 },
                 onDone: () => setIsLyricsLoading(false),
             });

@@ -4065,6 +4065,19 @@ export default {
     "cloudDriveDesc": "NetEase Cloud Music Drive",
     "qqCloudDriveDesc": "Weiyun Music Drive"
   },
+  "remotePlayback": {
+    "engaged": "{{provider}} tidak mengizinkan akun ini memutar langsung di Folia, jadi lagu-lagu ini sekarang diputar oleh aplikasinya sendiri. Folia menampilkan dan mengendalikannya.",
+    "engagedNote": "Efek, equalizer, automix, dan visual yang mengikuti audio tidak berlaku untuk lagu-lagu ini.",
+    "failed": {
+      "app-missing": "Lagu ini memerlukan aplikasi {{provider}}, dan aplikasinya tidak terpasang di komputer ini.",
+      "app-not-found": "Aplikasi {{provider}} tidak merespons. Buka aplikasinya dan masuk dengan akun yang sama, lalu tekan putar.",
+      "unreachable": "Tidak dapat menghubungi {{provider}} untuk mengendalikan aplikasinya. Periksa koneksi Anda lalu tekan putar lagi.",
+      "refused": "Aplikasi {{provider}} tidak menerima permintaan ini. Tekan putar untuk mencoba lagi."
+    },
+    "elsewhere": "Aplikasi {{provider}} beralih ke lagu atau perangkat lain. Tekan putar untuk kembali ke lagu ini.",
+    "ad": "Iklan sedang diputar di aplikasi {{provider}}.",
+    "videoExportUnavailable": "Ekspor video tidak tersedia saat aplikasi platform sendiri memutar lagu: suaranya tidak melewati Folia."
+  },
   "hifi": {
     "settings": {
       "groupEngine": "Mesin pemutaran",
