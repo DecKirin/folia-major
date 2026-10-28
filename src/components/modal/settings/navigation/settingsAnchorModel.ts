@@ -45,6 +45,8 @@ export const SETTINGS_ANCHOR_DEFINITIONS = {
     // pages/hifi/ on pages/PlaybackPage (desktop app only); the mpv output group only while mpv is the engine.
     hifiEngine: { section: 'playback' },
     hifiOutput: { section: 'playback' },
+    // pages/RemotePlaybackGroup on pages/PlaybackPage (desktop app only); the remote route's badge opens it.
+    remotePlayback: { section: 'playback' },
 
     // pages/GeneralPage, and the pinned commands on pages/InteractionPage
     languageSettings: { section: 'general' },

@@ -5,6 +5,7 @@ import { omni } from '../../services/onlineMusic/omni';
 import { installRemotePlayback, setRemoteEndedHandler, useRemoteTrackStore } from '../../services/remotePlayback/remotePlayback';
 import type { RemoteNotice } from '../../services/remotePlayback/remoteTrackStore';
 import { setStatusMessage } from '../../stores/useStatusMessageStore';
+import { openSettings } from '../../stores/useSettingsModalStore';
 
 // src/components/remote-playback/useRemotePlaybackBridge.ts
 // The remote route's wiring on the React side (the route itself is src/services/remotePlayback/):
@@ -41,6 +42,12 @@ export function useRemotePlaybackBridge({ handleNextTrack }: UseRemotePlaybackBr
                 setStatusMessage({
                     type: 'info', providerId, durationMs: ENGAGED_NOTICE_MS,
                     text: translate('remotePlayback.engaged', { provider }), note: translate('remotePlayback.engagedNote'),
+                    // Where it can be turned off, or back to Folia's own playback for this run.
+                    actionLabel: translate('remotePlayback.openSettings'),
+                    onAction: () => {
+                        setStatusMessage(null);
+                        openSettings('options', 'playback', null, 'remotePlayback');
+                    },
                 });
             } else if (notice.kind === 'failed') {
                 setStatusMessage({ type: 'error', providerId, text: translate(`remotePlayback.failed.${notice.failure ?? 'refused'}`, { provider }) });
@@ -48,8 +55,23 @@ export function useRemotePlaybackBridge({ handleNextTrack }: UseRemotePlaybackBr
                 setStatusMessage({ type: 'info', providerId, text: translate(`remotePlayback.${notice.kind}`, { provider }) });
             }
         };
+        // The notice that a service's app took over waits until that app plays the song: it comes in the
+        // middle of the song's start, whose own messages (loading, matching lyrics) would replace it at once.
+        let waitingEngaged: RemoteNotice | null = null;
+        const take = (notice: RemoteNotice) => {
+            if (notice.kind === 'engaged') waitingEngaged = notice;
+            else tell(notice);
+        };
+        // The restore at start can turn the route on before this subscribes: what it said is taken up here.
+        const said = useRemoteTrackStore.getState().notice;
+        if (said) take(said);
         const unsubscribe = useRemoteTrackStore.subscribe((state, previous) => {
-            if (state.notice && state.notice !== previous.notice) tell(state.notice);
+            if (state.notice && state.notice !== previous.notice) take(state.notice);
+            if (waitingEngaged && state.holding && state.current?.providerId === waitingEngaged.providerId) {
+                const notice = waitingEngaged;
+                waitingEngaged = null;
+                tell(notice);
+            }
         });
         return () => {
             unsubscribe();

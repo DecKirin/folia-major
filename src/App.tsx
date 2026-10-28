@@ -90,6 +90,7 @@ import { useHifiPlaybackBridge } from './components/hifi/useHifiPlaybackBridge';
 import { seekHifiRoute } from './components/hifi/hifiRouteTransport';
 import { seekRemoteRoute, useRemoteTrackStore } from './services/remotePlayback/remotePlayback';
 import { useRemotePlaybackBridge } from './components/remote-playback/useRemotePlaybackBridge';
+import { useRemoteAutomixGate } from './components/remote-playback/useRemoteAutomixGate';
 import { useHifiAutomixGate } from './components/hifi/useHifiAutomixGate';
 import { useWebEngineYield } from './components/hifi/useWebEngineYield';
 import { useHifiMediaSessionKeepAlive } from './components/hifi/useHifiMediaSessionKeepAlive';
@@ -1138,13 +1139,15 @@ export default function App() {
 
     // mpv is not one of the two decks a blend needs: off while this song or the next one plays on HiFi.
     const hifiBlocksAutomix = useHifiAutomixGate();
+    // Nor is a platform's own app: off while this song or the next one plays in it (services/remotePlayback).
+    const remoteBlocksAutomix = useRemoteAutomixGate();
     const automix = useAutomixDecks({
         audioRef,
         audioContextRef,
         currentSongKeyRef: currentSongRef,
         coverUrl,
         loopMode: effectiveLoopMode,
-        isEnabled: automixEnabled && !isNowPlayingStageActive && !hifiBlocksAutomix,
+        isEnabled: automixEnabled && !isNowPlayingStageActive && !hifiBlocksAutomix && !remoteBlocksAutomix,
         transition: transitionSettings,
         onAdvanceTrack: () => {
             // Same advance the end of a track would trigger, only early enough for the outgoing

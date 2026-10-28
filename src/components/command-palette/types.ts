@@ -435,6 +435,15 @@ export type CommandPaletteSettingsContext = {
     toggleHifiNavidrome: () => void;
     toggleHifiSoftwareVolume: () => void;
     /**
+     * Whether a streaming service's own desktop app may play its songs in Folia's place
+     * (useRemotePlaybackSettingsStore): flipped between off and Automatic, from what is stored at the press.
+     */
+    toggleRemotePlayback: () => void;
+    /** Whether a service's app plays its songs in this run (read at the press). */
+    hasRemotePlaybackEngaged: () => boolean;
+    /** Those services' songs play in Folia again for the rest of the run. */
+    releaseRemotePlayback: () => void;
+    /**
      * Whether "Detect mpv again" is offered: the engine exists and no mpv download is running, the
      * same answer the HiFi page enables its button by. A getter: a download starts and ends without
      * rebuilding this context.
