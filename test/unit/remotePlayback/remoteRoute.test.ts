@@ -28,7 +28,7 @@ const others = [neteaseSong, localSong, navidromeSong];
 
 beforeEach(() => {
     useRemoteTrackStore.setState({ engaged: [], notice: null });
-    useRemotePlaybackSettingsStore.setState({ mode: 'auto' });
+    useRemotePlaybackSettingsStore.setState({ enabled: true });
     takesOver.mockClear();
 });
 
@@ -50,11 +50,13 @@ describe('remoteRouteFor', () => {
         expect(useRemoteTrackStore.getState().engaged).toEqual([]);
     });
 
-    it('takes the platform\'s songs there at once on "always", and never on "off"', () => {
-        useRemotePlaybackSettingsStore.setState({ mode: 'always' });
-        expect([spotifySong, ...others].map(remoteRouteFor)).toEqual([true, false, false, false]);
-        useRemotePlaybackSettingsStore.setState({ mode: 'off' });
+    it('is never turned on with the setting off, and stops at once when it is turned off', () => {
+        useRemotePlaybackSettingsStore.setState({ enabled: false });
         expect(noteRemoteTakeover(spotifySong, 'no key for this account')).toBe(false);
+        expect(remoteRouteFor(spotifySong)).toBe(false);
+        useRemotePlaybackSettingsStore.setState({ enabled: true });
+        expect(noteRemoteTakeover(spotifySong, 'no key for this account')).toBe(true);
+        useRemotePlaybackSettingsStore.setState({ enabled: false });
         expect(remoteRouteFor(spotifySong)).toBe(false);
     });
 

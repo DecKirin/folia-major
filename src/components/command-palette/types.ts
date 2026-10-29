@@ -436,7 +436,7 @@ export type CommandPaletteSettingsContext = {
     toggleHifiSoftwareVolume: () => void;
     /**
      * Whether a streaming service's own desktop app may play its songs in Folia's place
-     * (useRemotePlaybackSettingsStore): flipped between off and Automatic, from what is stored at the press.
+     * (useRemotePlaybackSettingsStore): flipped from what is stored at the press.
      */
     toggleRemotePlayback: () => void;
     /** Whether a service's app plays its songs in this run (read at the press). */

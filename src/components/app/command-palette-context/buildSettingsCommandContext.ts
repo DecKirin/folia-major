@@ -303,7 +303,7 @@ export const buildSettingsCommandContext = (
         // The same store and actions as pages/RemotePlaybackGroup.
         toggleRemotePlayback: () => {
             const remote = useRemotePlaybackSettingsStore.getState();
-            remote.setMode(remote.mode === 'off' ? 'auto' : 'off');
+            remote.setEnabled(!remote.enabled);
         },
         hasRemotePlaybackEngaged: () => useRemoteTrackStore.getState().engaged.length > 0,
         releaseRemotePlayback: () => useRemoteTrackStore.getState().engaged.forEach(disengageRemote),

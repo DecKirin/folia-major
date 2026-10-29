@@ -40,12 +40,12 @@ export function useRemoteAutomixGate(): boolean {
     const isFmMode = usePlaybackStore(state => state.isFmMode);
     const loopMode = useAudioSettingsStore(state => state.loopMode);
     // remoteRouteFor reads these itself; they are subscribed to so that the gate is asked again when they change.
-    const mode = useRemotePlaybackSettingsStore(state => state.mode);
+    const enabled = useRemotePlaybackSettingsStore(state => state.enabled);
     const engaged = useRemoteTrackStore(state => state.engaged);
 
     return useMemo(
         () => remoteBlocksAutomix({ playbackRoute, playQueue, currentSong, loopMode, isFmMode }),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [currentSong, engaged, isFmMode, loopMode, mode, playQueue, playbackRoute],
+        [currentSong, enabled, engaged, isFmMode, loopMode, playQueue, playbackRoute],
     );
 }
