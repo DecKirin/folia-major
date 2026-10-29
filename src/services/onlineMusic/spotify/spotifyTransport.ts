@@ -7,7 +7,8 @@ import type { ProviderErrorCode } from '../../../types/onlineMusic';
 
 export type SpotifyOperation =
     | 'login_start' | 'login_check' | 'login_cancel' | 'login_open' | 'login_status' | 'logout'
-    | 'query' | 'radio' | 'lyrics' | 'audio' | 'audio_kept' | 'audio_keep' | 'library' | 'playlist_edit' | 'playlist_create';
+    | 'query' | 'radio' | 'lyrics' | 'audio' | 'audio_kept' | 'audio_keep' | 'library' | 'playlist_edit' | 'playlist_create'
+    | 'remote_state' | 'remote_play' | 'remote_control' | 'remote_stop';
 // The queries the main process sends for the renderer (`RENDERER_QUERIES` in the bridge).
 export type SpotifyQuery =
     | 'home' | 'homeSection' | 'browsePage' | 'queryWhatsNewFeed' | 'libraryV3' | 'fetchLibraryTracks' | 'fetchPlaylist'
@@ -26,6 +27,19 @@ export interface SpotifyWireAudio { url: string; format: string }
 /** The playlist that was made. */
 export interface SpotifyWireMadePlaylist { uri: string }
 export interface SpotifyWireLyrics { timed: boolean; lines: Array<{ startMs: number; words: string }> }
+/** Spotify's own desktop app as the desktop side follows it (electron/spotify/remote.cjs). */
+export interface SpotifyWireRemoteState {
+    version: number;
+    connected: boolean;
+    deviceName: string | null;
+    active: boolean;
+    trackId: string | null;
+    paused: boolean;
+    positionMs: number;
+    positionAtMs: number;
+    durationMs: number | null;
+    volume: number | null;
+}
 
 export const getSpotifyTransportAvailability = () => (
     typeof window !== 'undefined' && typeof window.electron?.spotifyRequest === 'function'

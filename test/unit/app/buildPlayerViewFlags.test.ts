@@ -20,6 +20,7 @@ const input = (overrides: Partial<FlagInput> = {}): FlagInput => ({
     duration: 0,
     playbackRoute: 'web',
     hasHifiTrack: false,
+    hasRemoteTrack: false,
     ...overrides,
 });
 
@@ -38,6 +39,12 @@ describe('canToggleCurrentPlayback', () => {
     it('is off on the HiFi route with no HiFi track, and for a leftover track once the route is web', () => {
         expect(canToggle({ playbackRoute: 'hifi', hasHifiTrack: false })).toBe(false);
         expect(canToggle({ playbackRoute: 'web', hasHifiTrack: true })).toBe(false);
+    });
+
+    it('is on for the song the platform\'s own app plays (remote route), and off for a leftover one', () => {
+        expect(canToggle({ playbackRoute: 'remote', hasRemoteTrack: true, audioSrc: null })).toBe(true);
+        expect(canToggle({ playbackRoute: 'remote', hasRemoteTrack: false })).toBe(false);
+        expect(canToggle({ playbackRoute: 'web', hasRemoteTrack: true })).toBe(false);
     });
 
     it('stays off while a Now Playing stage owns the controls, HiFi or not', () => {

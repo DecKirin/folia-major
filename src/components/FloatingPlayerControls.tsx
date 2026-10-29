@@ -13,11 +13,13 @@ import { usePlayerBottomBarBottomPx } from '../hooks/usePlayerBottomBarBottomPx'
 import { playerBottomBarLiveOffset } from '../stores/motionSignals';
 import { usePlayerBottomBarLayoutStore } from '../stores/usePlayerBottomBarLayoutStore';
 import { usePlayerChromeSettingsStore } from '../stores/usePlayerChromeSettingsStore';
+import { usePlaybackStore } from '../stores/usePlaybackStore';
 import { PLAYER_BOTTOM_BAR_BASE_OFFSET_PX, clampPlayerBottomBarOffset, resolvePlayerBottomBarMaxOffset } from '../utils/playerBottomBarLayout';
 import type { PlayerControlSlotActionId, PlayerControlSlotContext } from './floating-player/playerControlSlotActions';
 import { usePlayerOverlayObstacle } from '../hooks/usePlayerOverlayLayout';
 import { resolveLyricSeekMediaTime } from '../utils/lyrics/lyricSeekTime';
 import { HifiProgressRow } from './hifi/HifiBadge';
+import { RemoteProgressRow } from './remote-playback/RemoteBadge';
 import { useIsHifiRoute } from './hifi/useHifiSignalPath';
 
 export interface TrackNavigation {
@@ -513,6 +515,7 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({
     slotContext,
 }) => {
     const isHifiRoute = useIsHifiRoute();
+    const isRemoteRoute = usePlaybackStore(state => state.playbackRoute) === 'remote';
     const progressBar = (
         <ProgressBar
             currentTime={currentTime}
@@ -601,6 +604,11 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({
                 <HifiProgressRow className={PROGRESS_ROW_CLASS} isDaylight={isDaylight} disabled={controlsDisabled}>
                     {progressBar}
                 </HifiProgressRow>
+            ) : isRemoteRoute ? (
+                // The platform's own app sounds the song: a badge says so and opens what decides it.
+                <RemoteProgressRow className={PROGRESS_ROW_CLASS} isDaylight={isDaylight} disabled={controlsDisabled}>
+                    {progressBar}
+                </RemoteProgressRow>
             ) : (
                 <div className={PROGRESS_ROW_CLASS}>{progressBar}</div>
             )}

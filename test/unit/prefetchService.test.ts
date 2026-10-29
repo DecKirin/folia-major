@@ -17,6 +17,8 @@ vi.mock('@/services/onlineMusic/omni', () => ({
         getAudioSource: (...args: unknown[]) => mocks.getAudioSource(...args),
         canPlaySong: () => true,
         resolveAudioQuality: (_providerId: string, quality: string) => quality,
+        // No platform here has an app of its own that plays in Folia's place (services/remotePlayback).
+        getRemotePlayer: () => null,
     },
 }));
 vi.mock('@/services/onlineMusic/resourceCache', async (importOriginal) => ({

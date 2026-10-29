@@ -2,6 +2,7 @@ const crypto = require('node:crypto');
 const { createSpotifyAudio } = require('./audio.cjs');
 const { createSpotifyAudioFiles } = require('./audioFiles.cjs');
 const { SpotifyError, describeError, lineReason, plainWords, spotifyError, statusError, toErrorResult } = require('./errors.cjs');
+const { createSpotifyRemote } = require('./remote.cjs');
 const { createSpotifySessionRepository, publicAccountId } = require('./session.cjs');
 const { createSpotifySignIn } = require('./signIn.cjs');
 
@@ -15,7 +16,7 @@ const { createSpotifySignIn } = require('./signIn.cjs');
 
 const SPOTIFY_OPERATIONS = Object.freeze([
   'login_start', 'login_check', 'login_cancel', 'login_open', 'login_status', 'logout', 'query', 'radio', 'lyrics', 'audio', 'audio_kept',
-  'audio_keep', 'library', 'playlist_edit', 'playlist_create',
+  'audio_keep', 'library', 'playlist_edit', 'playlist_create', 'remote_state', 'remote_play', 'remote_control', 'remote_stop',
 ]);
 // The queries the renderer may send, each with the hash Spotify knows it by (read 2026-10-08).
 const QUERIES = Object.freeze({
@@ -86,10 +87,11 @@ const TRACK_ID = /^[0-9A-Za-z]{22}$/;
 // `audioDirectory()` is where the audio files kept on disk are; without it none is kept.
 // `onAudioKept(limitBytes)` is called after one was written, with the size the media cache is
 // to stay under.
+// `remoteOptions` replaces parts of the Spotify Connect side (`remote.cjs`) in tests.
 function createSpotifyApiBridge({
   store, safeStorage, fetch, openExternal, language = () => 'zh-CN', now = Date.now,
   log = (...args) => console.log(...args), warn = (...args) => console.warn(...args), signIn: givenSignIn, openSession,
-  audioDirectory, onAudioKept, wait = ms => new Promise(resolve => { setTimeout(resolve, ms); }),
+  audioDirectory, onAudioKept, wait = ms => new Promise(resolve => { setTimeout(resolve, ms); }), remoteOptions = {},
 }) {
   const repo = createSpotifySessionRepository({ store, safeStorage, log, warn });
   const signIn = givenSignIn ?? createSpotifySignIn({ fetch, openExternal, language, now, log, warn });
@@ -120,6 +122,7 @@ function createSpotifyApiBridge({
       if (error instanceof SpotifyError && error.code === 'auth-required' && repo.get()?.credentials.refresh_token === token) {
         repo.clear();
         audio.clear();
+        remote.stop();
         warn('[Spotify] Spotify no longer accepts the stored sign-in; it was removed');
       }
       throw error;
@@ -257,6 +260,9 @@ function createSpotifyApiBridge({
     accessToken: () => accessToken(), deviceId, fetch, now, log, warn, disk: audioFiles, onKept: onAudioKept,
     ...(openSession ? { openSession } : {}),
   });
+  // Spotify's own desktop app playing for the app where Spotify gives this account no audio. It
+  // connects only when the renderer first asks it something.
+  const remote = createSpotifyRemote({ accessToken: fresh => accessToken(fresh), fetch, openExternal, now, log, warn, ...remoteOptions });
 
   const handlers = {
     async login_start() {
@@ -327,6 +333,7 @@ function createSpotifyApiBridge({
       const saved = repo.get();
       repo.clear();
       audio.clear();
+      remote.stop();
       log(`[Spotify] Signed out${saved ? '' : ' (nobody was signed in)'}`);
       return true;
     },
@@ -373,6 +380,30 @@ function createSpotifyApiBridge({
 
     async audio_keep(params) {
       return audio.keep(params.url, params.limitBytes);
+    },
+
+    // Spotify's own desktop app playing for the app (remote.cjs). `remote_state` answers once the
+    // state is newer than version `after`, or after about 20 s: the renderer asks again at once.
+    async remote_state(params) {
+      if (!repo.get()) throw spotifyError('auth-required', 'Spotify sign-in is required');
+      return remote.waitState({ after: params.after });
+    },
+
+    async remote_play(params) {
+      if (!repo.get()) throw spotifyError('auth-required', 'Spotify sign-in is required');
+      await remote.play({ trackId: params.id, positionMs: params.positionMs });
+      return true;
+    },
+
+    async remote_control(params) {
+      if (!repo.get()) throw spotifyError('auth-required', 'Spotify sign-in is required');
+      await remote.control({ action: params.action, value: params.value });
+      return true;
+    },
+
+    async remote_stop() {
+      remote.stop();
+      return true;
     },
 
     // Puts one thing into the account's library or takes it out: a liked song, a kept album, a
@@ -480,6 +511,7 @@ function createSpotifyApiBridge({
     // Answers null when there is nothing to wait for. Else the quit is to be held for the promise
     // answered: it resolves once the renewal was stored, or failed, or after SHUTDOWN_LIMIT_MS.
     shutdown() {
+      remote.stop();
       return renewing && Promise.race([renewing.answer.then(() => {}, () => {}), wait(SHUTDOWN_LIMIT_MS)]);
     },
   };

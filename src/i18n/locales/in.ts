@@ -770,6 +770,9 @@ export default {
       "hifi-redetect-mpv": { "title": "Deteksi mpv ulang", "description": "Cari ulang mpv untuk HiFi, misalnya setelah memasang atau memperbaruinya" },
       "hifi-download-mpv": { "title": "Unduh atau perbarui mpv", "description": "Unduh mpv yang disarankan untuk HiFi, atau perbarui yang diunduh Folia; kemajuannya tampil di pengaturan mesin pemutaran" },
       "hifi-signal-path": { "title": "Jalur sinyal HiFi", "description": "Lihat bagaimana lagu ini sampai ke DAC dan apakah tetap bit-perfect" },
+      "settings-remote-playback": { "title": "Putar lewat aplikasi layanan", "description": "Buka pengaturan kapan aplikasi layanan streaming memutar lagunya sendiri, untuk akun yang tidak diizinkan memutar di Folia" },
+      "remote-playback-toggle": { "title": "Cadangan aplikasi layanan", "description": "Aktifkan atau nonaktifkan aplikasi layanan streaming memutar lagunya sendiri saat tidak mengizinkan akun Anda memutar di Folia" },
+      "remote-playback-release": { "title": "Putar di Folia lagi", "description": "Selama sisa sesi ini, lagu yang diputar aplikasi layanan kembali diputar oleh Folia" },
       "settings-transition": { "title": "Transisi cerdas", "description": "Langsung ke pengaturan transisi FOLIA" },
       "settings-navidrome": { "title": "Server Navidrome", "description": "Langsung ke pengaturan koneksi server Navidrome" },
       "settings-stage-mode": { "title": "Mode Stage", "description": "Langsung ke pengaturan pemutar eksternal Stage" },
@@ -2009,6 +2012,16 @@ export default {
     "replayGainMode": "Mode ReplayGain (Penyeimbang Kenyaringan)",
     "replayGainModeDesc": "Normalisasi kenyaringan pemutaran menggunakan metadata ReplayGain trek atau album bila tersedia. Penyeimbang pintar mengukur setiap lagu dan mengecilkan yang keras.",
     "transitionSettings": "Transisi Folia",
+    "remotePlaybackSettings": "Aplikasi layanan streaming",
+    "remotePlaybackMode": "Putar lewat aplikasi layanan",
+    "remotePlaybackModeDesc": "Saat layanan streaming tidak mengizinkan akun Anda memutar di Folia (Spotify), aplikasi desktopnya sendiri memutar lagu-lagu ini dan Folia menampilkan serta mengendalikannya.",
+    "remotePlaybackModeNote": "Otomatis: hanya setelah layanan menyatakannya di sesi ini. Selalu: tanpa mencoba dulu. Aplikasinya harus terpasang dan masuk dengan akun yang sama. Efek, equalizer, automix, dan visual yang mengikuti audio tidak berlaku untuk lagu-lagu ini.",
+    "remotePlaybackOff": "Mati",
+    "remotePlaybackAuto": "Otomatis",
+    "remotePlaybackAlways": "Selalu",
+    "remotePlaybackEngaged": "Diputar lewat aplikasinya sendiri di sesi ini: {{providers}}",
+    "remotePlaybackEngagedStatus": "Aktif",
+    "remotePlaybackRelease": "Putar di Folia lagi",
     "transitionEnable": "Campur",
     "transitionMode": "Mode transisi",
     "transitionCrossfade": "Folia Crossfade",
@@ -4075,6 +4088,23 @@ export default {
     "cloudDrive": "Cloud Drive",
     "cloudDriveDesc": "NetEase Cloud Music Drive",
     "qqCloudDriveDesc": "Weiyun Music Drive"
+  },
+  "remotePlayback": {
+    "engaged": "{{provider}} tidak mengizinkan akun ini memutar langsung di Folia, jadi lagu-lagu ini sekarang diputar oleh aplikasinya sendiri. Folia menampilkan dan mengendalikannya.",
+    "engagedNote": "Efek, equalizer, automix, dan visual yang mengikuti audio tidak berlaku untuk lagu-lagu ini.",
+    "failed": {
+      "app-missing": "Lagu ini memerlukan aplikasi {{provider}}, dan aplikasinya tidak terpasang di komputer ini.",
+      "app-not-found": "Aplikasi {{provider}} tidak merespons. Buka aplikasinya dan masuk dengan akun yang sama, lalu tekan putar.",
+      "unreachable": "Tidak dapat menghubungi {{provider}} untuk mengendalikan aplikasinya. Periksa koneksi Anda lalu tekan putar lagi.",
+      "refused": "Aplikasi {{provider}} tidak menerima permintaan ini. Tekan putar untuk mencoba lagi."
+    },
+    "elsewhere": "Aplikasi {{provider}} beralih ke lagu atau perangkat lain. Tekan putar untuk kembali ke lagu ini.",
+    "badge": "Di aplikasi {{provider}}",
+    "badgeAria": "Diputar di aplikasi {{provider}} pada {{device}}. Buka pengaturannya.",
+    "badgeAriaNoDevice": "Diputar di aplikasi {{provider}}. Buka pengaturannya.",
+    "released": "Lagu yang diputar aplikasi layanan akan kembali diputar di Folia selama sisa sesi ini.",
+    "openSettings": "Pengaturan",
+    "videoExportUnavailable": "Ekspor video tidak tersedia saat aplikasi platform sendiri memutar lagu: suaranya tidak melewati Folia."
   },
   "hifi": {
     "settings": {

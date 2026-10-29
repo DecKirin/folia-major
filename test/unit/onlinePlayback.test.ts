@@ -20,6 +20,8 @@ vi.mock('@/services/onlineMusic/resourceCache', () => ({
 vi.mock('@/services/onlineMusic/omni', () => ({
     omni: {
         getAudioSource: sourceMock,
+        // No platform here has an app of its own that plays in Folia's place (services/remotePlayback).
+        getRemotePlayer: () => null,
         getLyrics: lyricsMock,
         getAlternateArtistName: otherArtistNameMock,
         resolveAudioQuality: (_providerId: string, preference: string) => preference,

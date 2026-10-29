@@ -21,6 +21,7 @@ import { useBeatFxTrack } from '../../../../hooks/useBeatFxTrack';
 import { readIncomingLyricClock } from './incomingLyricClock';
 import { isBackgroundLyricHeld, setHeldLyricTime, useBackgroundLyricHoldStore } from '../../backgroundThrottling/backgroundLyricHoldStore';
 import { getHifiPosition } from '../../../../services/hifi/hifiPlayback';
+import { getRemotePosition } from '../../../../services/remotePlayback/remotePlayback';
 
 // src/components/app/playback/bridges/usePlaybackVisualizerBridge.ts
 
@@ -97,8 +98,11 @@ export function usePlaybackVisualizerBridge({
     const activePlaybackContext = usePlaybackStore(state => state.activePlaybackContext);
     const playerState = usePlaybackStore(state => state.playerState);
     const duration = usePlaybackStore(state => state.duration);
-    // mpv sounds the song on the HiFi route: the decks are silent, and the clock is extrapolated from mpv's position.
-    const isHifiActive = usePlaybackStore(state => state.playbackRoute) === 'hifi';
+    // mpv sounds the song on the HiFi route, the platform's own app on the remote route: the decks are
+    // silent on both, and the clock is counted on from what that player reports.
+    const playbackRoute = usePlaybackStore(state => state.playbackRoute);
+    const isHifiActive = playbackRoute === 'hifi';
+    const isRemoteActive = playbackRoute === 'remote';
     // The lyrics on screen, matching the deck getDisplayElement points at.
     const lyrics = usePlaybackStore(selectDisplayLyrics);
     // The live lyrics, which during a blend are the incoming track's (null until they load).
@@ -241,7 +245,7 @@ export function usePlaybackVisualizerBridge({
         // the track it is finishing, so that clock and picture never describe different songs.
         const audioElement = getDisplayElement?.() ?? audioRef.current;
         // Never on the HiFi route, so the spectrum keeps the idle breath there: there is no analyser on mpv's output.
-        const isActuallyPlaying = !isHifiActive && Boolean(audioElement && !audioElement.paused && !audioElement.ended);
+        const isActuallyPlaying = !isHifiActive && !isRemoteActive && Boolean(audioElement && !audioElement.paused && !audioElement.ended);
         // Mid-handover a deck can be loading while the other one is still sounding. The analyser
         // is downstream of both, so it has real signal: dropping to the idle breath here would put
         // a visible stutter at exactly the moment meant to be seamless.
@@ -295,10 +299,10 @@ export function usePlaybackVisualizerBridge({
             audioBands.spectrum?.set(new Uint8Array(0));
         }
 
-        if (isHifiActive) {
-            // Every frame, paused or not: the clock stands still while mpv is paused, and a seek while
-            // paused moves it. No end handling here - mpv reports the end itself.
-            const time = getHifiPosition();
+        if (isHifiActive || isRemoteActive) {
+            // Every frame, paused or not: the clock stands still while mpv (or the app) is paused, and a
+            // seek while paused moves it. No end handling here - the player reports the end itself.
+            const time = isHifiActive ? getHifiPosition() : getRemotePosition();
             currentTime.set(time);
 
             const effectiveLyricTime = time - displayOffsetMsRef.current / 1000;
@@ -418,6 +422,7 @@ export function usePlaybackVisualizerBridge({
         isTransitionAudible,
         getDisplayElement,
         isHifiActive,
+        isRemoteActive,
     ]);
 
     // Every frame normally; while 后台节流 holds the lyrics, a slow timer that keeps only the clocks. The

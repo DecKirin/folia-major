@@ -27,6 +27,7 @@ import { lyricsBeforeRules } from '../../../../utils/lyrics/lyricLineRules';
 import { reportYieldedQueue, wholeQueueWritesSoFar } from '../../../../services/wholeQueueWrites';
 import { getHifiPosition, installHifiPlayback, isHifiRoute, releaseUnclaimedHifiTrack } from '../../../../services/hifi/hifiPlayback';
 import { hifiEngine } from '../../../../services/hifi/hifiEngine';
+import { getRemotePosition, isRemoteRoute } from '../../../../services/remotePlayback/remotePlayback';
 
 // src/components/app/playback/restore/useElectronWindowPlaybackHandoff.ts
 // Captures and restores renderer playback state across Electron BrowserWindow rebuilds.
@@ -114,8 +115,9 @@ const buildPlaybackSnapshot = ({
     playQueue,
     isFmMode,
     playerState,
-    // On the HiFi route <audio> sits idle: the position is mpv's, as its clock reads it now.
-    currentTime: isHifiRoute() ? getHifiPosition() : (audioRef.current?.currentTime ?? currentTime.get()),
+    // On the HiFi route <audio> sits idle: the position is mpv's, as its clock reads it now; on the
+    // remote route it is the platform's app's, as counted from its last report.
+    currentTime: isHifiRoute() ? getHifiPosition() : isRemoteRoute() ? getRemotePosition() : (audioRef.current?.currentTime ?? currentTime.get()),
     duration,
     currentLineIndex,
 });

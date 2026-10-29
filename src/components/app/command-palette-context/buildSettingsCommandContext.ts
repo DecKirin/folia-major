@@ -4,6 +4,9 @@ import type { ThemeGenerationSource } from '../../../services/themePreferences';
 import { useAudioSettingsStore } from '../../../stores/useAudioSettingsStore';
 import { useAutomixSettingsStore } from '../../../stores/useAutomixSettingsStore';
 import { useHifiSettingsStore } from '../../../stores/useHifiSettingsStore';
+import { useRemotePlaybackSettingsStore } from '../../../stores/useRemotePlaybackSettingsStore';
+import { disengageRemote } from '../../../services/remotePlayback/remoteRoute';
+import { useRemoteTrackStore } from '../../../services/remotePlayback/remoteTrackStore';
 import { hifiEngine, useHifiEngineStore } from '../../../services/hifi/hifiEngine';
 import { HIFI_PLATFORM } from '../../modal/settings/pages/hifi/options';
 import { canOfferRuntimeDownload, isRuntimeInstalling } from '../../modal/settings/pages/hifi/runtimeState';
@@ -297,5 +300,12 @@ export const buildSettingsCommandContext = (
             return engine.supported && canOfferRuntimeDownload(engine.runtime, engine.installProgress, HIFI_PLATFORM);
         },
         installHifiRuntime: () => hifiEngine.install(),
+        // The same store and actions as pages/RemotePlaybackGroup.
+        toggleRemotePlayback: () => {
+            const remote = useRemotePlaybackSettingsStore.getState();
+            remote.setMode(remote.mode === 'off' ? 'auto' : 'off');
+        },
+        hasRemotePlaybackEngaged: () => useRemoteTrackStore.getState().engaged.length > 0,
+        releaseRemotePlayback: () => useRemoteTrackStore.getState().engaged.forEach(disengageRemote),
     };
 };

@@ -89,6 +89,9 @@ import { useAppPreferences } from './hooks/useAppPreferences';
 import { useElectronPlaybackBridge } from './components/app/playback/bridges/useElectronPlaybackBridge';
 import { useHifiPlaybackBridge } from './components/hifi/useHifiPlaybackBridge';
 import { seekHifiRoute } from './components/hifi/hifiRouteTransport';
+import { seekRemoteRoute, useRemoteTrackStore } from './services/remotePlayback/remotePlayback';
+import { useRemotePlaybackBridge } from './components/remote-playback/useRemotePlaybackBridge';
+import { useRemoteAutomixGate } from './components/remote-playback/useRemoteAutomixGate';
 import { useHifiAutomixGate } from './components/hifi/useHifiAutomixGate';
 import { useWebEngineYield } from './components/hifi/useWebEngineYield';
 import { useHifiMediaSessionKeepAlive } from './components/hifi/useHifiMediaSessionKeepAlive';
@@ -1137,13 +1140,15 @@ export default function App() {
 
     // mpv is not one of the two decks a blend needs: off while this song or the next one plays on HiFi.
     const hifiBlocksAutomix = useHifiAutomixGate();
+    // Nor is a platform's own app: off while this song or the next one plays in it (services/remotePlayback).
+    const remoteBlocksAutomix = useRemoteAutomixGate();
     const automix = useAutomixDecks({
         audioRef,
         audioContextRef,
         currentSongKeyRef: currentSongRef,
         coverUrl,
         loopMode: effectiveLoopMode,
-        isEnabled: automixEnabled && !isNowPlayingStageActive && !hifiBlocksAutomix,
+        isEnabled: automixEnabled && !isNowPlayingStageActive && !hifiBlocksAutomix && !remoteBlocksAutomix,
         transition: transitionSettings,
         onAdvanceTrack: () => {
             // Same advance the end of a track would trigger, only early enough for the outgoing
@@ -1396,6 +1401,7 @@ export default function App() {
         isTransitionAudible: automix.isTransitionAudible,
     });
     useHifiPlaybackBridge({ handleNextTrack, playSong, shouldAutoPlayRef: shouldAutoPlay, isLyricsLoading, effectiveLoopMode, isFmMode });
+    useRemotePlaybackBridge({ handleNextTrack });
     useNavidromeScrobbleReporter({
         audioRef,
         currentSong,
@@ -1604,6 +1610,7 @@ export default function App() {
     const isNowPlayingControlDisabled = isNowPlayingStageActive;
     const playbackRoute = usePlaybackStore(state => state.playbackRoute);
     const hasHifiTrack = useHifiTrackStore(state => state.current !== null);
+    const hasRemoteTrack = useRemoteTrackStore(state => state.current !== null);
 
     useElectronWindowChrome();
     const {
@@ -1626,6 +1633,7 @@ export default function App() {
         duration,
         playbackRoute,
         hasHifiTrack,
+        hasRemoteTrack,
     }), [
         activePlaybackContext,
         audioSrc,
@@ -1633,6 +1641,7 @@ export default function App() {
         disableHomeDynamicBackground,
         duration,
         hasHifiTrack,
+        hasRemoteTrack,
         hidePlayerProgressBar,
         hidePlayerRightPanelButton,
         hidePlayerTranslationSubtitle,
@@ -2005,6 +2014,8 @@ export default function App() {
     seekDuringTransitionRef.current = (time: number) => {
         // HiFi route: mpv seeks. Arrow keys and the remote seek mpv before this, so it is seekMainAudio's and resumes.
         if (seekHifiRoute(time, { resume: true })) return true;
+        // Remote route: the platform's own app seeks, as mpv does above.
+        if (seekRemoteRoute(time, { resume: true })) return true;
         const tailElement = cancelBlendToDisplayedTrack(true);
         if (!tailElement) return false;
         const seekTarget = Math.max(0, time);

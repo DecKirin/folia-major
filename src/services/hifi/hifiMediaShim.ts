@@ -1,4 +1,5 @@
 import { usePlaybackStore } from '../../stores/usePlaybackStore';
+import type { PlaybackRoute } from '../../types/hifi';
 
 // src/services/hifi/hifiMediaShim.ts
 // mpv 发声时给只读的观察者（Media Session、遥控器、听歌上报、Navidrome scrobble……）一个长得像 <audio> 的对象：
@@ -182,7 +183,17 @@ export class HifiMediaShim extends EventTarget {
 /** 全局只有一个 shim，观察者拿到的对象身份不随换歌变化。 */
 export const hifiMediaShim = new HifiMediaShim();
 
-/** 观察者该看的媒体：走 HiFi 时是 shim，否则是传入的 <audio>。 */
-export const getObservedMedia = (fallback: HTMLAudioElement | null): ObservedMedia | null => (
-    usePlaybackStore.getState().playbackRoute === 'hifi' ? hifiMediaShim : fallback
-);
+// 别的路线自己的 shim（remote 路线的在 src/services/remotePlayback/remotePlayback.ts），装上时登记。
+const routeMedia = new Map<PlaybackRoute, ObservedMedia>();
+
+/** 一条不经 <audio> 发声的路线登记它给观察者看的媒体。 */
+export const registerRouteMedia = (route: PlaybackRoute, media: ObservedMedia) => {
+    routeMedia.set(route, media);
+};
+
+/** 观察者该看的媒体：走 HiFi 时是 shim，走登记过的路线时是那条路线的，否则是传入的 <audio>。 */
+export const getObservedMedia = (fallback: HTMLAudioElement | null): ObservedMedia | null => {
+    const route = usePlaybackStore.getState().playbackRoute;
+    if (route === 'hifi') return hifiMediaShim;
+    return routeMedia.get(route) ?? fallback;
+};

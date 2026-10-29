@@ -401,6 +401,58 @@ export interface OnlinePlaybackProvider {
 }
 
 /**
+ * What the platform's own app says while it plays a song for this one (`OnlineRemotePlayer`).
+ * `version` grows with every change.
+ */
+export interface RemotePlayerState {
+    version: number;
+    /** Connected to the platform's service that reports the app's state. */
+    connected: boolean;
+    /** The name the app on this computer shows under; null while it is not found. */
+    deviceName: string | null;
+    /** The app on this computer is the one playing for the account. */
+    active: boolean;
+    /** The platform's id of the song the account plays; null for none. */
+    mediaId: string | null;
+    paused: boolean;
+    /** Where the song was at `positionAtMs` (a `Date.now()` time); it moves on from there while not paused. */
+    positionMs: number;
+    positionAtMs: number;
+    durationMs: number | null;
+    /** The app's volume, 0 to 1; null where the platform does not say. */
+    volume: number | null;
+}
+
+/**
+ * Why the platform's own app could not take a request: it is not on this computer (`app-missing`),
+ * it is not playing for this account (closed and not opened in time, or signed in to another
+ * account: `app-not-found`), the platform's service could not be reached (`unreachable`), or it
+ * refused (`refused`).
+ */
+export type RemotePlayerFailureKind = 'app-missing' | 'app-not-found' | 'unreachable' | 'refused';
+
+/**
+ * The platform's own app playing a song for this one, where this one cannot play the platform's
+ * audio itself: the app sounds it and this one shows it and steers it. Desktop only.
+ */
+export interface OnlineRemotePlayer {
+    /**
+     * Whether `error`, thrown by `playback.getAudioSource`, means this account's audio will not
+     * play here at all (not for this song only, nor for a while only): the app is to play instead.
+     */
+    takesOver(error: unknown): boolean;
+    /** Plays `song` in the app from `positionMs`, opening the app where it is not running. */
+    play(song: SongResult, positionMs: number): Promise<void>;
+    control(action: 'pause' | 'resume' | 'seek' | 'volume', value?: number): Promise<void>;
+    /** The state once its version is past `after` (at once for null), or as it is after about 20 s. */
+    waitState(after: number | null): Promise<RemotePlayerState>;
+    /** What a failure of the calls above was. */
+    failureKind(error: unknown): RemotePlayerFailureKind;
+    /** Leaves the platform's service. The app goes on as it was. */
+    release(): Promise<void>;
+}
+
+/**
  * One finished listening report, in the only two units a provider can be told the truth in:
  * how many seconds of this track were really rendered, and how long the track is.
  *
@@ -857,6 +909,8 @@ export interface OnlineMusicProvider {
     getSongPageUrl?(song: SongResult): string | null;
     search?: OnlineSearchProvider;
     playback?: OnlinePlaybackProvider;
+    /** The platform's own app, playing in this one's place (`OnlineRemotePlayer`); left out where there is none. */
+    remotePlayer?: OnlineRemotePlayer;
     playbackReports?: OnlinePlaybackReportProvider;
     lyrics?: OnlineLyricsProvider;
     auth?: OnlineAuthProvider;
@@ -879,6 +933,8 @@ export type OmniProviderSummary = ProviderAccountSummary;
 export type OmniAccountState = ProviderAccountSummary;
 export type OmniPage<T> = ProviderPage<T>;
 export type OmniAudioSource = ProviderAudioSource;
+export type OmniRemotePlayer = OnlineRemotePlayer;
+export type OmniRemotePlayerState = RemotePlayerState;
 export type OmniSongAvailability = ProviderSongAvailability;
 export type OmniSongReplacement = ProviderSongReplacement;
 export type OmniLyricsResult = ProviderLyricsResult;

@@ -35,6 +35,7 @@ import { subscribeRemoteActions } from '../../../../mods/folium/registries/remot
 import { errorMessage } from '../../../../utils/errorText';
 import { getObservedMedia, hifiMediaShim } from '../../../../services/hifi/hifiMediaShim';
 import { seekHifiRoute } from '../../../hifi/hifiRouteTransport';
+import { remoteMediaShim, seekRemoteRoute } from '../../../../services/remotePlayback/remotePlayback';
 
 // Bridges Electron-specific shell features without coupling to UI components.
 const DISCORD_PRESENCE_SNAPSHOT_INTERVAL_MS = 1000;
@@ -223,6 +224,9 @@ export const useElectronPlaybackBridge = ({
         // Read live, as getObservedMedia below does, so the two never disagree about the route.
         if (usePlaybackStore.getState().playbackRoute === 'hifi') {
             return Boolean(hifiMediaShim.currentSrc);
+        }
+        if (usePlaybackStore.getState().playbackRoute === 'remote') {
+            return Boolean(remoteMediaShim.currentSrc);
         }
         const audioElement = audioRef.current;
         if (!audioElement || !audioSrc) {
@@ -675,8 +679,8 @@ export const useElectronPlaybackBridge = ({
                 // During a blend the visible track is the outgoing one; route through the same
                 // cancel-and-resume the window's bar uses instead of moving the hidden incoming deck.
                 // mpv seeks on the HiFi route; like the deck's seek below, it leaves a paused track paused.
-                if (seekHifiRoute(nextTime)) {
-                    // Handled: mpv has the song, the deck has no source.
+                if (seekHifiRoute(nextTime) || seekRemoteRoute(nextTime)) {
+                    // Handled: mpv (or the platform's own app) has the song, the deck has no source.
                 } else if (onRemoteTransitionSeek?.(nextTime)) {
                     // Handled: the re-play seeks the deck itself once it reloads.
                 } else if (audioElement) {
@@ -749,8 +753,8 @@ export const useElectronPlaybackBridge = ({
                     // INCOMING deck, silent and holding a different track, so moving it moves
                     // nothing the listener can hear. The transition-aware path cancels the blend
                     // back onto the track on screen and seeks that instead.
-                    if (seekHifiRoute(nextTime)) {
-                        // Handled: mpv has the song on the HiFi route.
+                    if (seekHifiRoute(nextTime) || seekRemoteRoute(nextTime)) {
+                        // Handled: mpv has the song on the HiFi route, the platform's app on the remote route.
                     } else if (onRemoteTransitionSeek?.(nextTime)) {
                         // Handled: that path seeks the deck it kept.
                     } else if (audioRef.current) {

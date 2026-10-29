@@ -42,6 +42,8 @@ import { useLyricSettingsStore } from '../../../../stores/useLyricSettingsStore'
 import { useHifiSettingsStore } from '../../../../stores/useHifiSettingsStore';
 import { beginHifiTrack, hifiRouteFor, releaseUnclaimedHifiTrack, whenHifiRuntimeKnown } from '../../../../services/hifi/hifiPlayback';
 import type { PlaybackRoute } from '../../../../types/hifi';
+import { beginRemoteTrack } from '../../../../services/remotePlayback/remotePlayback';
+import { remoteRouteFor } from '../../../../services/remotePlayback/remoteRoute';
 
 // src/components/app/playback/restore/restorePlaybackSource.ts
 // Rehydrates playable audio and lyrics for a remembered song without reusing stale blob URLs.
@@ -382,27 +384,35 @@ const restoreSourceForSong = async (
     }
 
     // Where the platform could not be reached the load asks again by itself while the restore is wanted,
-    // unless the caller has a source to fall back on.
-    const audioResult = await loadOnlineSongAudio(song, audioQuality, null, hasFallbackSource
+    // unless the caller has a source to fall back on. A song its platform's own app plays
+    // (services/remotePlayback) asks for no address; one whose platform says, here, that this
+    // account's audio will not play in Folia goes to the app too.
+    const audioResult = remoteRouteFor(song) ? null : await loadOnlineSongAudio(song, audioQuality, null, hasFallbackSource
         ? {}
         : { retry: { isCurrent: () => !overtaken() } });
     if (overtaken()) {
         // Never played: nothing holds this URL.
-        if (audioResult.kind === 'ok' && audioResult.blobUrl) URL.revokeObjectURL(audioResult.blobUrl);
+        if (audioResult?.kind === 'ok' && audioResult.blobUrl) URL.revokeObjectURL(audioResult.blobUrl);
         return 'stale';
     }
-    if (audioResult.kind === 'unavailable') {
+    if (audioResult?.kind === 'unavailable' && !remoteRouteFor(song)) {
         tellFailure(audioResult.failure);
         return 'failed';
     }
 
-    if (audioResult.blobUrl) {
-        replaceBlobUrl(blobUrlRef, audioResult.blobUrl);
+    if (audioResult?.kind === 'ok') {
+        if (audioResult.blobUrl) {
+            replaceBlobUrl(blobUrlRef, audioResult.blobUrl);
+        }
+        currentOnlineAudioUrlFetchedAtRef.current = audioResult.fetchedAt;
+        setAudioSrc(audioResult.audioSrc);
+    } else {
+        // Waits in the app's place, paused at the time it was left at, for a press of play.
+        currentOnlineAudioUrlFetchedAtRef.current = null;
+        void beginRemoteTrack({ song, startSec: takeResumeTime(pendingResumeTimeRef), autoplay: false });
     }
-    currentOnlineAudioUrlFetchedAtRef.current = audioResult.fetchedAt;
-    setAudioSrc(audioResult.audioSrc);
 
-    const restoredSong = applyOnlineAudioSourceMetadata(song, audioResult.replayGain);
+    const restoredSong = applyOnlineAudioSourceMetadata(song, audioResult?.kind === 'ok' ? audioResult.replayGain : undefined);
     if (restoredSong.replayGain) {
         setCurrentSong(prev => {
             if (!prev || !isSamePlaybackSong(prev, song)) return prev;
