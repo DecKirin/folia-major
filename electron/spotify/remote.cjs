@@ -9,10 +9,16 @@ const { spotifyError, statusError } = require('./errors.cjs');
 // this computer plays and Folia shows and steers it. No audio passes through here.
 // Measured 2026-10-27 with this sign-in (test/manual/spotifyRemoteProbe.mjs): a hidden observer
 // (`hobs_<id>`) registered with the dealer's connection id is answered the account's whole state
-// as JSON, and every change after that is pushed; `play` of a list of tracks given inline starts
-// at the track `skip_to` names; pause, resume and seek are acted on in about 0.2 s. The position
-// is pushed only when it changes course: the renderer counts it on from `positionAtMs`. When the
-// list is over the app goes back to its first track and stops there; nothing else plays.
+// as JSON, and every change after that is pushed; pause, resume and seek are acted on in about
+// 0.2 s. The position is pushed only when it changes course: the renderer counts it on from
+// `positionAtMs`.
+// Measured again 2026-10-29 with the app at 1.3.6: a `play` whose context names no uri (the inline
+// list the probe used) is answered 200 and dropped by the app, which then holds no track at all.
+// A `play` of the track as its own context, with `seek_to`, starts it there in one command. At its
+// end the app goes on with Spotify's Autoplay where that is on, and the renderer takes that as the
+// end (src/services/remotePlayback/remoteClock.ts).
+// Spotify answers every command 200 whether the app acts on it or not: a play is done only once
+// the app reports the track as its own, and fails where it does not.
 
 const RESOLVE_URL = 'https://apresolve.spotify.com/?type=dealer&type=spclient';
 const FALLBACK_HOSTS = Object.freeze({ dealer: 'dealer.spotify.com', spclient: 'spclient.wg.spotify.com' });
@@ -21,8 +27,8 @@ const REQUEST_LIMIT_MS = 15 * 1000;
 // After the app was opened, the account's devices are read this often, for this long, until it is there.
 const APP_POLL_MS = 2000;
 const APP_WAIT_MS = 25 * 1000;
-// A started track is waited for this long before a position to start at is sought.
-const START_WAIT_MS = 6000;
+// A play the app has not reported as its own in this time has failed.
+const PLAY_CONFIRM_MS = 8000;
 // The longest a wait for news holds the renderer's request.
 const WAIT_LIMIT_MS = 20 * 1000;
 // After a failed connection the next is not tried sooner than this.
@@ -31,6 +37,7 @@ const TRACK_ID = /^[0-9A-Za-z]{22}$/;
 // The sentences the renderer tells the cases apart by (src/services/onlineMusic/spotify/spotifyRemotePlayer.ts).
 const APP_MISSING = 'The Spotify app is not installed on this computer';
 const APP_NOT_FOUND = 'The Spotify app on this computer is not playing for this account';
+const APP_DID_NOT_PLAY = 'The Spotify app did not start the song';
 
 const EMPTY_STATE = Object.freeze({
   connected: false, deviceName: null, active: false, trackId: null, paused: true, positionMs: 0, positionAtMs: 0, durationMs: null, volume: null,
@@ -84,6 +91,22 @@ function createSpotifyRemote({
     version += 1;
     for (const resolve of waiters) resolve();
     waiters.clear();
+  };
+  // Whether `check()` comes true, at once or with a state pushed within `limitMs`.
+  const confirm = async (check, limitMs) => {
+    const deadline = now() + limitMs;
+    while (!check()) {
+      const left = deadline - now();
+      if (left <= 0) return false;
+      let changed;
+      const timedOut = await Promise.race([
+        new Promise(resolve => { changed = () => resolve(false); waiters.add(changed); }),
+        wait(left).then(() => true),
+      ]);
+      waiters.delete(changed);
+      if (timedOut) return check();
+    }
+    return true;
   };
   const device = () => {
     const computers = computersOf(cluster);
@@ -216,24 +239,27 @@ function createSpotifyRemote({
   };
 
   return {
-    // Plays one track in the app from `positionMs`: the list given holds this track only, so when
-    // it ends the app stops on it and the renderer goes on to its own next song.
+    // Plays one track in the app from `positionMs`, and resolves once the app reports it as its own.
+    // When it ends the renderer goes on to its own next song.
     async play({ trackId, positionMs = 0 }) {
       if (typeof trackId !== 'string' || !TRACK_ID.test(trackId)) throw spotifyError('invalid-response', 'Invalid Spotify track');
       const target = await reachApp();
       const uri = `spotify:track:${trackId}`;
+      const from = Math.max(0, Math.round(Number(positionMs) || 0));
+      const before = version;
       await command(target, {
         endpoint: 'play',
-        context: { uri: '', url: '', pages: [{ tracks: [{ uri }] }] },
+        context: { uri, url: `context://${uri}` },
         play_origin: { feature_identifier: 'folia', feature_version: 'remote' },
-        options: { skip_to: { track_uri: uri, track_index: 0 } },
+        options: from > 0 ? { seek_to: from } : {},
       });
-      const from = Math.max(0, Math.round(Number(positionMs) || 0));
+      // A report after the command, of this track on this app: one from before it may be of the same track.
+      const started = await confirm(() => version > before && state.active && state.trackId === trackId, PLAY_CONFIRM_MS);
+      if (!started) {
+        warn(`[SpotifyRemote] The app took the play of ${trackId} but did not start it (it holds ${state.trackId ?? 'no track'})`);
+        throw spotifyError('unavailable', APP_DID_NOT_PLAY, `play: not reported within ${PLAY_CONFIRM_MS} ms`);
+      }
       log(`[SpotifyRemote] ${trackId} was started in the app${from > 0 ? ` (from ${from} ms)` : ''}`);
-      if (from < 1000) return;
-      // The track is sought once the app holds it: a seek sent before it is loaded is lost.
-      for (let waited = 0; waited < START_WAIT_MS && !(state.trackId === trackId && state.active); waited += 250) await wait(250);
-      await command(target, { endpoint: 'seek_to', value: from });
     },
 
     async control({ action, value }) {
@@ -286,4 +312,4 @@ function createSpotifyRemote({
   };
 }
 
-module.exports = { APP_MISSING, APP_NOT_FOUND, createSpotifyRemote, stateOf };
+module.exports = { APP_DID_NOT_PLAY, APP_MISSING, APP_NOT_FOUND, createSpotifyRemote, stateOf };

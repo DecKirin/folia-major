@@ -37,6 +37,9 @@ let endedHandler: (() => void) | null = null;
 const VOLUME_STEP_MS = 150;
 let volumeTimer: ReturnType<typeof setTimeout> | null = null;
 let sentVolume: number | null = null;
+// The pause sent as the app went on past the end of a song by itself; a start waits for it, so the
+// next song's play is not overtaken by it.
+let stoppingAutoplay: Promise<void> | null = null;
 
 const withoutRouteGuard = (write: () => void) => {
     ownWriteDepth += 1;
@@ -87,6 +90,8 @@ const start = async (track: RemoteTrack, positionMs: number) => {
     const mine = attempt;
     useRemoteTrackStore.setState({ starting: true });
     try {
+        if (stoppingAutoplay) await stoppingAutoplay;
+        if (mine !== attempt) return false;
         await player.play(track.song, positionMs);
         if (mine !== attempt) return false;
         useRemoteTrackStore.setState({ starting: false });
@@ -129,6 +134,24 @@ const applyReport = (reported: RemotePlayerState) => {
     if (!current || !isRemoteRoute()) return;
     const update = readRemoteUpdate({ mediaId: current.mediaId, holding, clock }, reported);
     if (update.kind === 'waiting') return;
+    if (update.kind === 'moved-on') {
+        // Ended as <audio> would: the app is stopped on the song it went on to, what it reports from
+        // here on is not this song's, and Folia goes on to its own next song. Played again, it starts
+        // from the top, as a song the app stopped back at its start.
+        clock = { ...pauseRemoteClock(clock), baseMs: 0 };
+        useRemoteTrackStore.setState({ holding: false });
+        const player = playerOf(current);
+        if (player) {
+            const pausing = player.control('pause')
+                .catch(error => console.warn('[RemotePlayback] The app was not stopped on the song it went on to', error))
+                .finally(() => { if (stoppingAutoplay === pausing) stoppingAutoplay = null; });
+            stoppingAutoplay = pausing;
+        }
+        console.info('[RemotePlayback] The song ended in the app, which went on to one of its own', { songKey: current.songKey, next: reported.mediaId });
+        remoteMediaShim.markEnded();
+        endedHandler?.();
+        return;
+    }
     if (update.kind === 'elsewhere') {
         clock = pauseRemoteClock(clock);
         remoteMediaShim.markPaused();

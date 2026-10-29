@@ -39,6 +39,8 @@ export type RemoteUpdate =
     | { kind: 'mine'; clock: RemoteClock; ended: boolean; seeked: boolean }
     // The app held this song and has left it: another song chosen in the app, or another device playing.
     | { kind: 'elsewhere' }
+    // The app played this song to its end and went on to one of its own (its autoplay): the song ended.
+    | { kind: 'moved-on' }
     // The app has not taken this song up yet (it is being started, or waits for a press of play).
     | { kind: 'waiting' };
 
@@ -52,7 +54,13 @@ export const readRemoteUpdate = (
     nowMs = Date.now(),
 ): RemoteUpdate => {
     const mine = state.active && state.mediaId === mediaId;
-    if (!mine) return holding ? { kind: 'elsewhere' } : { kind: 'waiting' };
+    if (!mine) {
+        if (!holding) return { kind: 'waiting' };
+        // Another song in the app as the count reaches the end of this one, which was playing: the
+        // app went on by itself, not the listener choosing elsewhere.
+        const atEnd = !clock.paused && clock.durationMs !== null && readRemoteClockMs(clock, nowMs) >= clock.durationMs - ENDED_WITHIN_MS;
+        return state.active && state.mediaId !== null && atEnd ? { kind: 'moved-on' } : { kind: 'elsewhere' };
+    }
     const next: RemoteClock = {
         baseMs: state.positionMs,
         atMs: state.positionAtMs,
