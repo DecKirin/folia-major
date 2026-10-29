@@ -6,12 +6,10 @@ import { omni } from '../onlineMusic/omni';
 import { tellRemoteNotice, useRemoteTrackStore } from './remoteTrackStore';
 
 // src/services/remotePlayback/remoteRoute.ts
-// Whether a song plays in its platform's own app (the remote route) instead of in Folia. Only a song
-// of a platform that has such an app (`omni.getRemotePlayer`) ever does, and only:
-//   - 'always': every song of that platform;
-//   - 'auto' (the default): once, in this run, the platform said this account's audio will not play
-//     in Folia at all (`OnlineRemotePlayer.takesOver`), from then on until the app is closed;
-//   - 'off': never.
+// Whether a song plays in its platform's own app (the remote route) instead of in Folia: a failover.
+// Only a song of a platform that has such an app (`omni.getRemotePlayer`) ever does, and only once,
+// in this run, the platform said this account's audio will not play in Folia at all
+// (`OnlineRemotePlayer.takesOver`), from then on until the app is closed; never with the setting off.
 // Every other song (local, Navidrome, other platforms) is not touched by any of this.
 
 export type RemotePlayerOfSong = { providerId: OnlineProviderId; player: OmniRemotePlayer; mediaId: string };
@@ -27,13 +25,11 @@ export const remotePlayerOf = (song: SongResult | null | undefined): RemotePlaye
 };
 
 export const remoteRouteFor = (song: SongResult | null | undefined): boolean => {
-    const mode = useRemotePlaybackSettingsStore.getState().mode;
     const { engaged } = useRemoteTrackStore.getState();
     // The common case, asked on every start of a song: nothing has turned the route on.
-    if (mode === 'off' || (mode === 'auto' && engaged.length === 0)) return false;
+    if (!useRemotePlaybackSettingsStore.getState().enabled || engaged.length === 0) return false;
     const found = remotePlayerOf(song);
-    if (!found) return false;
-    return mode === 'always' || engaged.includes(found.providerId);
+    return found !== null && engaged.includes(found.providerId);
 };
 
 /**
@@ -42,7 +38,7 @@ export const remoteRouteFor = (song: SongResult | null | undefined): boolean => 
  * (once). Answers whether the song is now to play in the app.
  */
 export const noteRemoteTakeover = (song: SongResult, error: unknown): boolean => {
-    if (useRemotePlaybackSettingsStore.getState().mode === 'off') return false;
+    if (!useRemotePlaybackSettingsStore.getState().enabled) return false;
     const found = remotePlayerOf(song);
     if (!found || !found.player.takesOver(error)) return false;
     const { engaged } = useRemoteTrackStore.getState();

@@ -5,10 +5,11 @@ import { describe, expect, it } from 'vitest';
 // test/unit/spotify/spotifyRemote.test.ts — Spotify's own desktop app steered through Spotify
 // Connect (electron/spotify/remote.cjs) against a stand-in for Spotify: which device is this
 // computer's app, what the play command carries, and what the renderer is told. The shapes are the
-// ones the probe measured on 2026-10-27 (test/manual/spotifyRemoteProbe.mjs).
+// ones the probe measured on 2026-10-27 (test/manual/spotifyRemoteProbe.mjs); the play command is the
+// one measured on 2026-10-29 with the app at 1.3.6.
 
 const require = createRequire(import.meta.url);
-const { APP_MISSING, APP_NOT_FOUND, createSpotifyRemote, stateOf } = require('../../../electron/spotify/remote.cjs');
+const { APP_DID_NOT_PLAY, APP_MISSING, APP_NOT_FOUND, createSpotifyRemote, stateOf } = require('../../../electron/spotify/remote.cjs');
 const { readPayload } = require('../../../electron/spotify/dealer.cjs');
 
 const TRACK = '3n3Ppam7vgaVa1iaRUc9Lp';
@@ -38,13 +39,25 @@ const fakeSpotify = ({ cluster, command = () => ({ status: 200, body: { ack_id: 
         const answer = pathname.startsWith('/connect-state/v1/devices/') ? { status: 200, body: cluster() } : command(pathname, body);
         return { ok: answer.status < 300, status: answer.status, text: async () => JSON.stringify(answer.body) };
     };
-    return { fetch, requests };
+    return { fetch, requests, cluster };
 };
 
-const remoteWith = (spotify: ReturnType<typeof fakeSpotify>, options: Record<string, unknown> = {}) => {
+// `appPlays`: the app takes up a play it is sent and reports the track as its own, as Spotify's does;
+// without it the app is sent the play and reports nothing.
+const remoteWith = (spotify: ReturnType<typeof fakeSpotify>, options: Record<string, unknown> = {}, { appPlays = true } = {}) => {
     const pushes: Array<(cluster: object) => void> = [];
+    const push = (cluster: object) => pushes.forEach(onCluster => onCluster(cluster));
+    const fetch = async (url: string, init: { method?: string; body?: string } = {}) => {
+        const answer = await spotify.fetch(url, init);
+        const command = init.body ? JSON.parse(init.body).command : undefined;
+        if (appPlays && answer.ok && command?.endpoint === 'play') {
+            const target = url.slice(url.lastIndexOf('/') + 1);
+            push({ ...spotify.cluster(), active_device_id: target, player_state: { track: { uri: command.context.uri }, is_playing: true, is_paused: false } });
+        }
+        return answer;
+    };
     const remote = createSpotifyRemote({
-        accessToken: async () => 'token', fetch: spotify.fetch, log: () => {}, warn: () => {},
+        accessToken: async () => 'token', fetch, log: () => {}, warn: () => {},
         names: async () => ['Xiding\'s MacBook Pro', 'Mac'],
         openDealer: async ({ onCluster }: { onCluster: (cluster: object) => void }) => {
             pushes.push(onCluster);
@@ -53,7 +66,7 @@ const remoteWith = (spotify: ReturnType<typeof fakeSpotify>, options: Record<str
         wait: async () => {},
         ...options,
     });
-    return { remote, push: (cluster: object) => pushes.forEach(push => push(cluster)) };
+    return { remote, push };
 };
 
 describe('stateOf', () => {
@@ -91,11 +104,13 @@ describe('createSpotifyRemote', () => {
         const commands = spotify.requests.filter(request => request.method === 'POST');
         expect(commands).toHaveLength(1);
         expect(commands[0].path).toMatch(new RegExp(`/connect-state/v1/player/command/from/hobs_[0-9a-f]{40}/to/${HERE.device_id}$`));
+        // The track as its own context: one that names no uri is taken and dropped by the app.
         expect(commands[0].body.command).toMatchObject({
             endpoint: 'play',
-            context: { uri: '', url: '', pages: [{ tracks: [{ uri: `spotify:track:${TRACK}` }] }] },
-            options: { skip_to: { track_uri: `spotify:track:${TRACK}`, track_index: 0 } },
+            context: { uri: `spotify:track:${TRACK}`, url: `context://spotify:track:${TRACK}` },
+            options: {},
         });
+        expect(commands[0].body.command.context.pages).toBeUndefined();
     });
 
     it('opens the app where the account lists no computer of this one, and takes the computer that joins as it', async () => {
@@ -130,16 +145,26 @@ describe('createSpotifyRemote', () => {
         await expect(remote.control({ action: 'resume' })).rejects.toMatchObject({ message: APP_NOT_FOUND });
     });
 
-    it('seeks the started track to where it was asked to start, once the app holds it', async () => {
+    it('starts the track where it was asked to start, in the one command', async () => {
         const spotify = fakeSpotify({ cluster: () => clusterOf([HERE]) });
-        const { remote, push } = remoteWith(spotify);
-        const playing = remote.play({ trackId: TRACK, positionMs: 61000 });
-        await new Promise(resolve => { setTimeout(resolve, 0); });
-        push(clusterOf([HERE], { track: { uri: `spotify:track:${TRACK}` }, is_playing: true, is_paused: false }, HERE.device_id));
-        await playing;
+        const { remote } = remoteWith(spotify);
+        await remote.play({ trackId: TRACK, positionMs: 61000 });
         const commands = spotify.requests.filter(request => request.method === 'POST').map(request => request.body.command);
-        expect(commands.map(command => command.endpoint)).toEqual(['play', 'seek_to']);
-        expect(commands[1].value).toBe(61000);
+        expect(commands).toHaveLength(1);
+        expect(commands[0]).toMatchObject({ endpoint: 'play', options: { seek_to: 61000 } });
+    });
+
+    it('fails a play that Spotify answers but the app does not take up', async () => {
+        const spotify = fakeSpotify({ cluster: () => clusterOf([HERE]) });
+        const { remote } = remoteWith(spotify, {}, { appPlays: false });
+        await expect(remote.play({ trackId: TRACK })).rejects.toMatchObject({ code: 'unavailable', message: APP_DID_NOT_PLAY });
+    });
+
+    it('does not take a report from before the play, of the same track, as the play done', async () => {
+        const already = clusterOf([HERE], { track: { uri: `spotify:track:${TRACK}` }, is_playing: true, is_paused: false }, HERE.device_id);
+        const spotify = fakeSpotify({ cluster: () => already });
+        const { remote } = remoteWith(spotify, {}, { appPlays: false });
+        await expect(remote.play({ trackId: TRACK })).rejects.toMatchObject({ message: APP_DID_NOT_PLAY });
     });
 
     it('answers the state at once without a version, and waits for a newer one with it', async () => {

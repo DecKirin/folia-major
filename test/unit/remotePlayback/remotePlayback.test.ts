@@ -28,7 +28,7 @@ vi.mock('@/services/onlineMusic/omni', () => ({
     omni: { getRemotePlayer: (providerId: string) => (providerId === 'spotify' ? player : null) },
 }));
 
-const { beginRemoteTrack, installRemotePlayback, remoteTransport, getRemotePosition } = await import('@/services/remotePlayback/remotePlayback');
+const { beginRemoteTrack, installRemotePlayback, remoteTransport, getRemotePosition, setRemoteEndedHandler } = await import('@/services/remotePlayback/remotePlayback');
 const { useRemoteTrackStore } = await import('@/services/remotePlayback/remoteTrackStore');
 const { setAudioSrc, setPlaybackRoute, usePlaybackStore } = await import('@/stores/usePlaybackStore');
 const { PlayerState } = await import('@/types');
@@ -116,6 +116,32 @@ describe('the remote route', () => {
         useAudioSettingsStore.setState({ volume: 0.3, isMuted: false });
         await new Promise(resolve => { setTimeout(resolve, 200); });
         expect(control).not.toHaveBeenCalled();
+    });
+
+    it('takes the app going on to a song of its own at the end as the end: the app is stopped, then the next song is handed over', async () => {
+        const ended = vi.fn();
+        setRemoteEndedHandler(ended);
+        await beginRemoteTrack({ song, autoplay: true });
+        await flush();
+        pushReport(report({ version: 2, positionMs: 226_000 }));
+        await flush();
+        // Spotify's Autoplay: another song, at its start, as this one's count reaches its end.
+        let stopped: () => void = () => {};
+        control.mockImplementationOnce(() => new Promise<void>(resolve => { stopped = resolve; }));
+        pushReport(report({ version: 3, mediaId: '4uLU6hMCjMI75M1A2tKUQC', positionMs: 0 }));
+        await flush();
+        expect(control).toHaveBeenCalledWith('pause');
+        expect(ended).toHaveBeenCalledTimes(1);
+        expect(useRemoteTrackStore.getState().holding).toBe(false);
+        // The next song's play waits for the pause to be through.
+        play.mockClear();
+        void beginRemoteTrack({ song, autoplay: true });
+        await flush();
+        expect(play).not.toHaveBeenCalled();
+        stopped();
+        await flush();
+        expect(play).toHaveBeenCalledWith(song, 0);
+        setRemoteEndedHandler(null);
     });
 
     it('leaves Folia\'s other routes alone: off the remote route its transport does nothing', () => {

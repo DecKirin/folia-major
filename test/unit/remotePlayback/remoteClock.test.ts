@@ -57,7 +57,21 @@ describe('readRemoteUpdate', () => {
 
     it('tells another song or device once the app held the song', () => {
         const clock = playing(10_000, 0);
-        expect(readRemoteUpdate({ mediaId: ID, holding: true, clock }, report({ mediaId: 'another00000000000000000' }))).toEqual({ kind: 'elsewhere' });
-        expect(readRemoteUpdate({ mediaId: ID, holding: true, clock }, report({ active: false }))).toEqual({ kind: 'elsewhere' });
+        expect(readRemoteUpdate({ mediaId: ID, holding: true, clock }, report({ mediaId: 'another00000000000000000' }), 1000)).toEqual({ kind: 'elsewhere' });
+        expect(readRemoteUpdate({ mediaId: ID, holding: true, clock }, report({ active: false }), 1000)).toEqual({ kind: 'elsewhere' });
+    });
+
+    // Measured 2026-10-29: with the track as the play's context, the app goes on with Spotify's
+    // Autoplay at its end instead of stopping back at its start.
+    it('takes another song in the app as the count reaches the end as the end of the song', () => {
+        const clock = playing(195_000, 0);
+        const next = report({ mediaId: 'another00000000000000000', positionMs: 0, positionAtMs: 4500 });
+        expect(readRemoteUpdate({ mediaId: ID, holding: true, clock }, next, 4500)).toEqual({ kind: 'moved-on' });
+    });
+
+    it('takes another song near the end of a paused song, or on another device, as elsewhere', () => {
+        const next = report({ mediaId: 'another00000000000000000' });
+        expect(readRemoteUpdate({ mediaId: ID, holding: true, clock: { ...playing(198_000, 0), paused: true } }, next, 4500)).toEqual({ kind: 'elsewhere' });
+        expect(readRemoteUpdate({ mediaId: ID, holding: true, clock: playing(195_000, 0) }, report({ active: false }), 4500)).toEqual({ kind: 'elsewhere' });
     });
 });
